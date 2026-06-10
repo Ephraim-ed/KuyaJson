@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  @apply bg-bg text-gray-200 antialiased;
+  overscroll-behavior: none;
+}
+
+/* CodeMirror sizing: let the editor flex to fill its container */
+.cm-editor {
+  height: 100%;
+  font-size: 13px;
+}
+.cm-scroller {
+  font-family: var(--font-mono), ui-monospace, monospace;
+}
+.cm-editor.cm-focused {
+  outline: none;
+}
+
+/* Thin scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-bg-softer rounded;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* CodeMirror Find panel (Cmd/Ctrl+F): align the match-case/regexp/by-word
+   checkboxes with their labels and tidy the dark-theme spacing. */
+.cm-panel.cm-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 6px 8px;
+}
+.cm-panel.cm-search label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  line-height: 1;
+}
+.cm-panel.cm-search label input[type="checkbox"] {
+  margin: 0;
+  vertical-align: middle;
+  accent-color: #2f81f7;
+}
+.cm-panel.cm-search input[type="text"] {
+  padding: 2px 6px;
+}
+.cm-panel.cm-search br {
+  display: none;
+}
+.cm-panel.cm-search button {
+  margin: 0;
+}
+
+/* jsondiffpatch visual delta styling (dark) */
+.jsondiffpatch-delta {
+  font-family: var(--font-mono), monospace;
+  font-size: 12px;
+  margin: 0;
+  padding: 0 0 0 12px;
+  list-style: none;
+}
+.jsondiffpatch-delta ul {
+  list-style: none;
+  padding: 0 0 0 16px;
+  margin: 0;
+}
+.jsondiffpatch-added .jsondiffpatch-property-name,
+.jsondiffpatch-added .jsondiffpatch-value {
+  background: rgba(46, 160, 67, 0.25);
+}
+.jsondiffpatch-deleted .jsondiffpatch-property-name,
+.jsondiffpatch-deleted .jsondiffpatch-value {
+  background: rgba(248, 81, 73, 0.25);
+  text-decoration: line-through;
+}
+.jsondiffpatch-modified .jsondiffpatch-left-value {
+  background: rgba(248, 81, 73, 0.25);
+  text-decoration: line-through;
+}
+.jsondiffpatch-modified .jsondiffpatch-right-value {
+  background: rgba(46, 160, 67, 0.25);
+}
+.jsondiffpatch-property-name {
+  color: #79c0ff;
+}
+.jsondiffpatch-unchanged {
+  color: #6e7681;
+}
+.jsondiffpatch-value pre {
+  display: inline;
+  margin: 0;
+}
+.jsondiffpatch-arrow {
+  display: none;
+}
