@@ -53,7 +53,11 @@ export default function WorkspaceTabs({
                 : "bg-transparent text-gray-400 hover:bg-bg-soft hover:text-gray-200"
             }`}
           >
-            <span className="shrink-0 font-mono text-[11px] text-gray-500">
+            <span
+              className={`shrink-0 font-mono text-[11px] ${
+                active ? "text-blue-600 dark:text-yellow-400" : "text-gray-500"
+              }`}
+            >
               {"{ }"}
             </span>
             {editingId === w.id ? (
@@ -88,7 +92,7 @@ export default function WorkspaceTabs({
         );
       })}
       <button
-        onClick={onAdd}
+        onClick={() => onAdd()}
         title="New workspace"
         className="mb-1 ml-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-base text-gray-400 hover:bg-bg-soft hover:text-gray-200"
       >

@@ -10,6 +10,7 @@ import { validate } from "@/lib/json/validate";
 import {
   detectPii,
   rulesFromDetected,
+  anonymizeAllValues,
   PII_LABELS,
   type AnonRule,
   type DetectedPii,
@@ -48,6 +49,18 @@ export default function AnonymizeTool({ input, setInput, editor }: ToolProps) {
     const autoRules = rulesFromDetected(detected);
     setRules(autoRules);
     run(autoRules);
+  }
+
+  function anonymizeEverything() {
+    const v = validate(input);
+    if (!v.ok) {
+      setError(v.error.message);
+      return;
+    }
+    setError(null);
+    const r = anonymizeAllValues(v.value);
+    setInput(JSON.stringify(r.value, null, 2));
+    setCount(r.count);
   }
 
   const updateRule = (id: string, patch: Partial<AnonRule>) =>
@@ -156,6 +169,12 @@ export default function AnonymizeTool({ input, setInput, editor }: ToolProps) {
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-2 py-1.5">
         <Button variant="primary" onClick={() => run(rules)}>
           Anonymize
+        </Button>
+        <Button
+          onClick={anonymizeEverything}
+          title="Replace every value with a fake of the same type (strings, numbers, booleans), keeping structure & types"
+        >
+          All values
         </Button>
         {count != null && (
           <span className="text-xs text-gray-500">{count} values replaced (applied to document)</span>

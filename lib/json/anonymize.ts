@@ -201,6 +201,7 @@ function fakeFor(kind: PiiKind, seed: number): string {
  */
 export class ConsistentFaker {
   private cache = new Map<string, string>();
+  private typed = new Map<string, unknown>();
 
   get(kind: PiiKind, original: unknown): string {
     const orig = String(original);
@@ -209,6 +210,54 @@ export class ConsistentFaker {
     if (hit !== undefined) return hit;
     const fake = fakeFor(kind, hashString(cacheKey));
     this.cache.set(cacheKey, fake);
+    return fake;
+  }
+
+  /** Fake a string of roughly similar shape (stable per original). */
+  getString(original: string): string {
+    const key = `str:${original}`;
+    if (this.typed.has(key)) return this.typed.get(key) as string;
+    faker.seed(hashString(key));
+    let fake = faker.lorem.word();
+    while (fake.length < original.length && fake.length < 48) {
+      fake += " " + faker.lorem.word();
+    }
+    this.typed.set(key, fake);
+    return fake;
+  }
+
+  /** Fake a number preserving integer/float and rough magnitude/sign. */
+  getNumber(original: number): number {
+    const key = `num:${original}`;
+    if (this.typed.has(key)) return this.typed.get(key) as number;
+    faker.seed(hashString(key));
+    const abs = Math.abs(original);
+    let fake: number;
+    if (Number.isInteger(original)) {
+      const digits = Math.max(1, Math.floor(Math.log10(abs || 1)) + 1);
+      const min = digits > 1 ? Math.pow(10, digits - 1) : 0;
+      const max = Math.pow(10, digits) - 1;
+      fake = faker.number.int({ min, max });
+    } else {
+      const places = (String(original).split(".")[1] ?? "").length || 2;
+      fake = faker.number.float({
+        min: abs / 2 || 0,
+        max: abs * 2 || 1,
+        fractionDigits: Math.min(places, 6),
+      });
+    }
+    if (original < 0) fake = -fake;
+    this.typed.set(key, fake);
+    return fake;
+  }
+
+  /** Fake a boolean (stable per original). */
+  getBoolean(original: boolean): boolean {
+    const key = `bool:${original}`;
+    if (this.typed.has(key)) return this.typed.get(key) as boolean;
+    faker.seed(hashString(key));
+    const fake = faker.datatype.boolean();
+    this.typed.set(key, fake);
     return fake;
   }
 }
@@ -352,6 +401,49 @@ export function anonymize(
 
 function isContainer(v: unknown): boolean {
   return v != null && typeof v === "object";
+}
+
+/**
+ * Anonymize every primitive value in the document, preserving each value's type
+ * (string→string, number→number, boolean→boolean, null stays null). Values that
+ * look like known PII keep a realistic fake of that kind; everything else gets a
+ * type-appropriate fake. Replacements are stable per original value.
+ */
+export function anonymizeAllValues(
+  value: unknown,
+  cf: ConsistentFaker = new ConsistentFaker(),
+): AnonymizeResult {
+  let count = 0;
+
+  function fakePrimitive(v: unknown): unknown {
+    if (v === null) return null;
+    if (typeof v === "boolean") {
+      count++;
+      return cf.getBoolean(v);
+    }
+    if (typeof v === "number") {
+      count++;
+      return cf.getNumber(v);
+    }
+    if (typeof v === "string") {
+      count++;
+      const kind = classifyValue("", v); // value-pattern PII only (no key)
+      return kind ? cf.get(kind, v) : cf.getString(v);
+    }
+    return v;
+  }
+
+  function walk(node: unknown): unknown {
+    if (Array.isArray(node)) return node.map(walk);
+    if (node && typeof node === "object") {
+      const out: Record<string, unknown> = {};
+      for (const [k, val] of Object.entries(node)) out[k] = walk(val);
+      return out;
+    }
+    return fakePrimitive(node);
+  }
+
+  return { value: walk(structuredClone(value)), count };
 }
 
 /** Build a one-click rule set from detected PII (fake everything by kind). */

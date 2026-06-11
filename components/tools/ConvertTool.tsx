@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import ToolFrame from "./ToolFrame";
-import OutputPanel from "../OutputPanel";
 import { Button, Select } from "../ui";
 import { DocumentActions } from "../DocumentActions";
+import { useConsole } from "../console";
 import { type ToolProps } from "./types";
 import { convert, type ConvertTarget } from "@/lib/json/convert";
 
@@ -13,23 +13,22 @@ const TARGETS: {
   label: string;
   ext: string;
   mime: string;
-  lang: "json" | "text";
 }[] = [
-  { value: "yaml", label: "YAML", ext: "yaml", mime: "text/yaml", lang: "text" },
-  { value: "xml", label: "XML", ext: "xml", mime: "application/xml", lang: "text" },
-  { value: "csv", label: "CSV", ext: "csv", mime: "text/csv", lang: "text" },
-  { value: "typescript", label: "TypeScript types", ext: "ts", mime: "text/plain", lang: "text" },
-  { value: "python", label: "Python (dataclass)", ext: "py", mime: "text/plain", lang: "text" },
-  { value: "pydantic", label: "Python (Pydantic)", ext: "py", mime: "text/plain", lang: "text" },
-  { value: "go", label: "Go structs", ext: "go", mime: "text/plain", lang: "text" },
-  { value: "schema", label: "JSON Schema", ext: "schema.json", mime: "application/json", lang: "json" },
+  { value: "yaml", label: "YAML", ext: "yaml", mime: "text/yaml" },
+  { value: "xml", label: "XML", ext: "xml", mime: "application/xml" },
+  { value: "csv", label: "CSV", ext: "csv", mime: "text/csv" },
+  { value: "typescript", label: "TypeScript types", ext: "ts", mime: "text/plain" },
+  { value: "python", label: "Python (dataclass)", ext: "py", mime: "text/plain" },
+  { value: "pydantic", label: "Python (Pydantic)", ext: "py", mime: "text/plain" },
+  { value: "go", label: "Go structs", ext: "go", mime: "text/plain" },
+  { value: "schema", label: "JSON Schema", ext: "schema.json", mime: "application/json" },
 ];
 
 export default function ConvertTool({ input, editor }: ToolProps) {
   const [target, setTarget] = useState<ConvertTarget>("yaml");
-  const [output, setOutput] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { setOutput } = useConsole();
 
   const meta = TARGETS.find((t) => t.value === target)!;
 
@@ -37,10 +36,16 @@ export default function ConvertTool({ input, editor }: ToolProps) {
     setBusy(true);
     setError(null);
     try {
-      setOutput(await convert(input, target));
+      const text = await convert(input, target);
+      setOutput({
+        kind: "text",
+        title: `Converted to ${meta.label}`,
+        text,
+        filename: `output.${meta.ext}`,
+        mime: meta.mime,
+      });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Conversion failed.");
-      setOutput("");
     } finally {
       setBusy(false);
     }
@@ -57,20 +62,13 @@ export default function ConvertTool({ input, editor }: ToolProps) {
       <Button variant="primary" onClick={run} disabled={busy}>
         {busy ? "Converting…" : "Convert"}
       </Button>
+      <span className="text-xs text-gray-500">
+        Output appears in the Output panel below.
+      </span>
       {error && <span className="text-xs text-red-400">{error}</span>}
       <DocumentActions className="ml-auto" />
     </div>
   );
 
-  const results = (
-    <OutputPanel
-      value={output}
-      language={meta.lang}
-      filename={`output.${meta.ext}`}
-      mime={meta.mime}
-      emptyHint="Pick a target format and click Convert."
-    />
-  );
-
-  return <ToolFrame controls={controls} editor={editor} results={results} splitKey="convert" />;
+  return <ToolFrame controls={controls} editor={editor} />;
 }

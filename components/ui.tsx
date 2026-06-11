@@ -39,7 +39,8 @@ export function Button({
     ghost: `border border-border text-gray-300 hover:bg-bg-softer ${
       active ? "bg-bg-softer text-white" : "bg-bg-soft"
     }`,
-    danger: "border border-red-900/60 text-red-300 hover:bg-red-950/40 bg-bg-soft",
+    danger:
+      "border border-red-300 bg-red-100 text-red-700 hover:bg-red-200 dark:border-red-900/60 dark:bg-bg-soft dark:text-red-300 dark:hover:bg-red-950/40",
   };
   return (
     <button

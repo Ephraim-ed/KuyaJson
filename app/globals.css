@@ -2,8 +2,62 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Light theme (default). Surfaces are light; the gray scale runs dark→light so
+   utilities like text-gray-200 (designed as "light text") render as dark text. */
 :root {
+  color-scheme: light;
+  --bg: 237 240 244;
+  --bg-soft: 228 232 237;
+  --bg-softer: 218 223 230;
+  --border: 199 206 214;
+
+  --gray-50: 17 24 39;
+  --gray-100: 31 41 55;
+  --gray-200: 51 60 75;
+  --gray-300: 71 81 97;
+  --gray-400: 95 105 120;
+  --gray-500: 100 108 119;
+  --gray-600: 116 124 135;
+  --gray-700: 180 187 196;
+  --gray-800: 210 215 221;
+  --gray-900: 226 230 235;
+  --gray-950: 236 239 243;
+
+  /* JSON tree syntax colours (readable on the light surface) */
+  --tree-key: #0a4ea8;
+  --tree-string: #0a7d33;
+  --tree-number: #b35900;
+  --tree-boolean: #6639ba;
+  --tree-null: #6e7781;
+  --tree-punct: #6e7781;
+}
+
+/* Dark theme: standard Tailwind gray values (light-on-dark). */
+.dark {
   color-scheme: dark;
+  --bg: 13 17 23;
+  --bg-soft: 22 27 34;
+  --bg-softer: 33 38 45;
+  --border: 48 54 61;
+
+  --gray-50: 249 250 251;
+  --gray-100: 243 244 246;
+  --gray-200: 229 231 235;
+  --gray-300: 209 213 219;
+  --gray-400: 156 163 175;
+  --gray-500: 107 114 128;
+  --gray-600: 75 85 99;
+  --gray-700: 55 65 81;
+  --gray-800: 31 41 55;
+  --gray-900: 17 24 39;
+  --gray-950: 3 7 18;
+
+  --tree-key: #7dd3fc;
+  --tree-string: #86efac;
+  --tree-number: #fcd34d;
+  --tree-boolean: #7dd3fc;
+  --tree-null: #8b949e;
+  --tree-punct: #8b949e;
 }
 
 html,
@@ -80,7 +134,7 @@ body {
   bottom: 0;
   width: 8px;
   height: 8px;
-  background: #21262d; /* = bg-softer (active tab) */
+  background: rgb(var(--bg-softer)); /* = bg-softer (active tab) */
 }
 .ctab-active::before {
   left: -8px;

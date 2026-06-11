@@ -5,13 +5,13 @@ import { type TreeNode, type ValueType } from "@/lib/json/tree";
 import { copyText } from "@/lib/clipboard";
 import { useToast } from "./ui";
 
-const TYPE_COLOR: Record<ValueType, string> = {
-  object: "text-purple-300",
-  array: "text-purple-300",
-  string: "text-green-300",
-  number: "text-amber-300",
-  boolean: "text-sky-300",
-  null: "text-gray-500",
+const TYPE_VAR: Record<ValueType, string> = {
+  object: "var(--tree-punct)",
+  array: "var(--tree-punct)",
+  string: "var(--tree-string)",
+  number: "var(--tree-number)",
+  boolean: "var(--tree-boolean)",
+  null: "var(--tree-null)",
 };
 
 function renderValue(node: TreeNode): string {
@@ -24,6 +24,10 @@ interface TreeProps {
   selectedPath?: string | null;
   /** Force-expand all containers (used while filtering). */
   forceOpen?: boolean;
+  /** Containers at depth < expandLevel start expanded. */
+  expandLevel?: number;
+  /** Open a node's subtree in a new workspace. */
+  onOpenSubtree?: (path: string) => void;
 }
 
 function Node({
@@ -32,8 +36,10 @@ function Node({
   onSelect,
   selectedPath,
   forceOpen,
+  expandLevel = 2,
+  onOpenSubtree,
 }: TreeProps & { node: TreeNode; depth: number }) {
-  const [open, setOpen] = useState(depth < 2);
+  const [open, setOpen] = useState(depth < expandLevel);
   const toast = useToast();
   const isContainer = node.type === "object" || node.type === "array";
   const selected = selectedPath === node.path;
@@ -46,7 +52,7 @@ function Node({
   }
 
   return (
-    <div className="leading-6">
+    <div className="leading-[1.5]">
       <div
         onClick={() => onSelect?.(node.path)}
         className={`group flex cursor-pointer items-center gap-1.5 rounded px-1 ${
@@ -69,9 +75,12 @@ function Node({
           <span className="w-4 shrink-0" />
         )}
 
-        <span className="shrink-0 font-mono text-[1em] text-sky-200">
+        <span
+          className="shrink-0 font-mono text-[1em]"
+          style={{ color: "var(--tree-key)" }}
+        >
           {node.key}
-          <span className="text-gray-500">:</span>
+          <span style={{ color: "var(--tree-punct)" }}>:</span>
         </span>
 
         {isContainer ? (
@@ -80,19 +89,34 @@ function Node({
           </span>
         ) : (
           <span
-            className={`truncate font-mono text-[1em] ${TYPE_COLOR[node.type]}`}
+            className="truncate font-mono text-[1em]"
+            style={{ color: TYPE_VAR[node.type] }}
           >
             {renderValue(node)}
           </span>
         )}
 
-        <button
-          onClick={copyPath}
-          title="Copy JSONPath"
-          className="ml-auto hidden shrink-0 px-1 text-[0.82em] text-gray-500 hover:text-gray-200 group-hover:block"
-        >
-          ⧉
-        </button>
+        <span className="ml-auto flex shrink-0 items-center">
+          {isContainer && onOpenSubtree && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenSubtree(node.path);
+              }}
+              title="Open subtree in new workspace"
+              className="hidden px-1 text-[0.82em] text-gray-500 hover:text-accent group-hover:block"
+            >
+              ↗
+            </button>
+          )}
+          <button
+            onClick={copyPath}
+            title="Copy JSONPath"
+            className="hidden px-1 text-[0.82em] text-gray-500 hover:text-gray-200 group-hover:block"
+          >
+            ⧉
+          </button>
+        </span>
       </div>
 
       {isContainer && expanded && node.children && (
@@ -105,6 +129,8 @@ function Node({
               onSelect={onSelect}
               selectedPath={selectedPath}
               forceOpen={forceOpen}
+              expandLevel={expandLevel}
+              onOpenSubtree={onOpenSubtree}
             />
           ))}
         </div>
@@ -118,6 +144,8 @@ export default function TreeView({
   onSelect,
   selectedPath,
   forceOpen,
+  expandLevel = 2,
+  onOpenSubtree,
   fontSize = 13,
 }: TreeProps & { root: TreeNode; fontSize?: number }) {
   return (
@@ -125,12 +153,16 @@ export default function TreeView({
       className="h-full overflow-auto p-2 font-mono"
       style={{ fontSize }}
     >
+      {/* Key on expandLevel so changing it remounts and re-applies depth. */}
       <Node
+        key={forceOpen ? "filtered" : `lvl-${expandLevel}`}
         node={root}
         depth={0}
         onSelect={onSelect}
         selectedPath={selectedPath}
         forceOpen={forceOpen}
+        expandLevel={expandLevel}
+        onOpenSubtree={onOpenSubtree}
       />
     </div>
   );

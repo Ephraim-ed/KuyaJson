@@ -4,7 +4,8 @@ import { type RefObject, useEffect, useRef, useState } from "react";
 import JsonEditor, { type JsonEditorHandle } from "./JsonEditor";
 import WorkspaceTabs from "./WorkspaceTabs";
 import ZoomControls from "./ZoomControls";
-import { ConsolePanel, useConsole } from "./console";
+import Breadcrumbs from "./Breadcrumbs";
+import { DockPanel, useConsole } from "./console";
 import { validate } from "@/lib/json/validate";
 import type { Workspace } from "@/lib/persist";
 
@@ -15,6 +16,10 @@ interface Props {
   onChange: (v: string) => void;
   onReset: (v: string) => void;
   editorRef?: RefObject<JsonEditorHandle | null>;
+  /** Selected node path (for breadcrumbs); null hides the bar. */
+  selectedPath?: string | null;
+  onSelectPath?: (path: string) => void;
+  onDeselect?: () => void;
   // Workspace tab bar
   workspaces: Workspace[];
   activeId: string;
@@ -34,6 +39,9 @@ export default function InputPanel({
   onChange,
   onReset,
   editorRef,
+  selectedPath,
+  onSelectPath,
+  onDeselect,
   workspaces,
   activeId,
   onSwitchWorkspace,
@@ -66,7 +74,10 @@ export default function InputPanel({
       }
     } else if (prevMsg.current !== r.error.message) {
       clearSource("validate"); // replace any stale error
-      push("error", r.error.message, "validate");
+      const pos = r.error.position;
+      const range =
+        pos != null ? { from: Math.max(0, pos - 1), to: pos + 1 } : undefined;
+      push("error", r.error.message, "validate", range);
       prevMsg.current = r.error.message;
     }
   }, [value, push, clearSource]);
@@ -111,6 +122,7 @@ export default function InputPanel({
           value={value}
           onChange={onChange}
           fontSize={fontSize}
+          onUserSelect={onDeselect}
           placeholder="Paste or drop JSON here…"
         />
         <div className="absolute bottom-2 right-3 z-10 rounded-md border border-border bg-bg-soft/90 px-1 py-0.5 opacity-60 shadow-sm backdrop-blur transition-opacity hover:opacity-100">
@@ -118,8 +130,15 @@ export default function InputPanel({
         </div>
       </div>
 
-      {/* Error console */}
-      <ConsolePanel />
+      {/* Bottom dock: console + search output */}
+      <DockPanel
+        onFocusRange={(from, to) => editorRef?.current?.focusRange(from, to)}
+      />
+
+      {/* Breadcrumbs for the selected node (hidden when nothing is selected) */}
+      {selectedPath && onSelectPath && (
+        <Breadcrumbs path={selectedPath} onSelect={onSelectPath} />
+      )}
 
       {dragging && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-accent bg-bg/80 text-sm text-accent">

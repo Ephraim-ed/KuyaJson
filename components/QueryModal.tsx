@@ -2,48 +2,180 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Banner, Button } from "./ui";
+import { useConsole, type OutputItem } from "./console";
 import { validate } from "@/lib/json/validate";
-import { queryJsonPath, searchText } from "@/lib/json/query";
+import { queryJsonPath } from "@/lib/json/query";
 
-type Mode = "jsonpath" | "text";
-const PRESETS = ["$..email", "$..*", "$.*", "$..[?(@.id)]"];
+type Mode = "find" | "jsonpath";
 
 interface Props {
   input: string;
+  setInput: (v: string) => void;
   open: boolean;
   onClose: () => void;
-  /** Focus a path in the document editor (mirrors the tree's behaviour). */
+  /** Select/scroll to a char range in the editor (without stealing focus). */
+  focusRange: (from: number, to: number) => void;
+  /** Focus a JSONPath in the editor (used by the JSONPath mode). */
   onSelectPath?: (path: string) => void;
 }
 
-export default function QueryModal({ input, open, onClose, onSelectPath }: Props) {
-  const [mode, setMode] = useState<Mode>("jsonpath");
+interface Match {
+  from: number;
+  to: number;
+}
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildRegex(
+  query: string,
+  caseSensitive: boolean,
+  wholeWord: boolean,
+  regex: boolean,
+): RegExp | null {
+  if (query === "") return null;
+  try {
+    let pattern = regex ? query : escapeRegExp(query);
+    if (wholeWord) pattern = `\\b(?:${pattern})\\b`;
+    return new RegExp(pattern, caseSensitive ? "g" : "gi");
+  } catch {
+    return null;
+  }
+}
+
+function findMatches(text: string, re: RegExp | null): Match[] {
+  if (!re) return [];
+  const out: Match[] = [];
+  let m: RegExpExecArray | null;
+  re.lastIndex = 0;
+  while ((m = re.exec(text)) !== null) {
+    out.push({ from: m.index, to: m.index + m[0].length });
+    if (m.index === re.lastIndex) re.lastIndex++; // guard zero-length
+    if (out.length > 5000) break;
+  }
+  return out;
+}
+
+function lineOf(text: string, pos: number): number {
+  let line = 1;
+  for (let i = 0; i < pos && i < text.length; i++) if (text[i] === "\n") line++;
+  return line;
+}
+function previewOf(text: string, m: Match): string {
+  const start = text.lastIndexOf("\n", m.from) + 1;
+  let end = text.indexOf("\n", m.to);
+  if (end === -1) end = text.length;
+  const raw = text.slice(start, end).trim();
+  return raw.length > 100 ? raw.slice(0, 97) + "…" : raw;
+}
+
+export default function QueryModal({
+  input,
+  setInput,
+  open,
+  onClose,
+  focusRange,
+  onSelectPath,
+}: Props) {
+  const [mode, setMode] = useState<Mode>("find");
+  const [query, setQuery] = useState("");
+  const [replace, setReplace] = useState("");
+  const [caseSensitive, setCaseSensitive] = useState(false);
+  const [wholeWord, setWholeWord] = useState(false);
+  const [useRegex, setUseRegex] = useState(false);
+  const [index, setIndex] = useState(0);
   const [expr, setExpr] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
+  const findRef = useRef<HTMLInputElement>(null);
+  const { setOutput } = useConsole();
 
+  const re = useMemo(
+    () => buildRegex(query, caseSensitive, wholeWord, useRegex),
+    [query, caseSensitive, wholeWord, useRegex],
+  );
+  const invalidRegex = useRegex && query !== "" && re === null;
+  const matches = useMemo(
+    () => (mode === "find" ? findMatches(input, re) : []),
+    [mode, input, re],
+  );
+
+  // JSONPath results
   const parsed = useMemo(() => validate(input), [input]);
-  const result = useMemo(() => {
-    if (!parsed.ok) return null;
-    return mode === "jsonpath"
-      ? queryJsonPath(parsed.value, expr)
-      : searchText(parsed.value, expr);
-  }, [parsed, mode, expr]);
+  const jpResult = useMemo(() => {
+    if (mode !== "jsonpath" || !parsed.ok) return null;
+    return queryJsonPath(parsed.value, expr);
+  }, [mode, parsed, expr]);
 
-  // Focus the field and allow Esc to close when opened.
+  useEffect(() => {
+    if (open) setTimeout(() => findRef.current?.focus(), 30);
+  }, [open, mode]);
+
   useEffect(() => {
     if (!open) return;
-    const t = setTimeout(() => inputRef.current?.focus(), 30);
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  // Keep index in range and highlight the current match.
+  useEffect(() => {
+    if (mode !== "find" || matches.length === 0) return;
+    const i = Math.min(index, matches.length - 1);
+    const m = matches[i];
+    if (m) focusRange(m.from, m.to);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [index, matches]);
+
   if (!open) return null;
+
+  function step(dir: 1 | -1) {
+    if (matches.length === 0) return;
+    setIndex((i) => (i + dir + matches.length) % matches.length);
+  }
+
+  function replaceCurrent() {
+    if (matches.length === 0) return;
+    const i = Math.min(index, matches.length - 1);
+    const m = matches[i];
+    setInput(input.slice(0, m.from) + replace + input.slice(m.to));
+    // Index stays; matches recompute on next render.
+  }
+
+  function replaceAll() {
+    if (!re || matches.length === 0) return;
+    re.lastIndex = 0;
+    setInput(input.replace(re, () => replace));
+  }
+
+  function sendAllToOutput() {
+    if (matches.length === 0) {
+      setOutput({ kind: "matches", title: `No matches for "${query}"`, items: [] });
+      onClose();
+      return;
+    }
+    const items: OutputItem[] = matches.map((m) => ({
+      from: m.from,
+      to: m.to,
+      line: lineOf(input, m.from),
+      preview: previewOf(input, m),
+    }));
+    setOutput({ kind: "matches", title: `${items.length} matches for "${query}"`, items });
+    onClose();
+  }
+
+  const toggle = (on: boolean, label: string, title: string, fn: () => void) => (
+    <button
+      onClick={fn}
+      title={title}
+      className={`flex h-6 w-7 items-center justify-center rounded text-xs font-medium ${
+        on ? "bg-accent text-white" : "text-gray-400 hover:bg-bg-softer"
+      }`}
+    >
+      {label}
+    </button>
+  );
 
   return (
     <div
@@ -54,12 +186,12 @@ export default function QueryModal({ input, open, onClose, onSelectPath }: Props
         className="flex max-h-[80vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-border bg-bg-soft shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center gap-2 border-b border-border p-3">
+        <div className="flex items-center gap-2 border-b border-border p-2">
+          <Button active={mode === "find"} onClick={() => setMode("find")}>
+            Find &amp; Replace
+          </Button>
           <Button active={mode === "jsonpath"} onClick={() => setMode("jsonpath")}>
             JSONPath
-          </Button>
-          <Button active={mode === "text"} onClick={() => setMode("text")}>
-            Text search
           </Button>
           <button
             onClick={onClose}
@@ -70,71 +202,127 @@ export default function QueryModal({ input, open, onClose, onSelectPath }: Props
           </button>
         </div>
 
-        <div className="space-y-2 border-b border-border p-3">
-          <input
-            ref={inputRef}
-            value={expr}
-            onChange={(e) => setExpr(e.target.value)}
-            placeholder={mode === "jsonpath" ? "$..email" : "search keys & values"}
-            className="w-full rounded border border-border bg-bg px-3 py-2 font-mono text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-accent"
-          />
-          {mode === "jsonpath" && (
-            <div className="flex flex-wrap gap-1.5">
-              {PRESETS.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setExpr(p)}
-                  className="rounded bg-bg px-2 py-0.5 font-mono text-xs text-gray-400 hover:bg-bg-softer hover:text-gray-200"
-                >
-                  {p}
-                </button>
-              ))}
+        {mode === "find" ? (
+          <div className="space-y-2 p-3">
+            {/* Find row */}
+            <div className="flex items-center gap-2">
+              <input
+                ref={findRef}
+                value={query}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  setIndex(0);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") step(e.shiftKey ? -1 : 1);
+                }}
+                placeholder="Find"
+                className={`min-w-0 flex-1 rounded border bg-bg px-2 py-1.5 font-mono text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-accent ${
+                  invalidRegex ? "border-red-700" : "border-border"
+                }`}
+              />
+              {toggle(caseSensitive, "Aa", "Match case", () =>
+                setCaseSensitive((v) => !v),
+              )}
+              {toggle(wholeWord, "\\b", "Whole word", () => setWholeWord((v) => !v))}
+              {toggle(useRegex, ".*", "Regular expression", () =>
+                setUseRegex((v) => !v),
+              )}
+              <span className="w-16 shrink-0 text-right text-xs text-gray-500">
+                {matches.length > 0
+                  ? `${Math.min(index + 1, matches.length)}/${matches.length}`
+                  : "0/0"}
+              </span>
+              <button
+                onClick={() => step(-1)}
+                disabled={matches.length === 0}
+                className="rounded px-1.5 py-1 text-gray-400 hover:bg-bg-softer disabled:opacity-40"
+                title="Previous (Shift+Enter)"
+              >
+                ↑
+              </button>
+              <button
+                onClick={() => step(1)}
+                disabled={matches.length === 0}
+                className="rounded px-1.5 py-1 text-gray-400 hover:bg-bg-softer disabled:opacity-40"
+                title="Next (Enter)"
+              >
+                ↓
+              </button>
             </div>
-          )}
-          {!parsed.ok && input.trim() !== "" && (
-            <Banner kind="error">{parsed.error.message}</Banner>
-          )}
-          {result && !result.ok && <Banner kind="error">{result.error}</Banner>}
-          {result && result.ok && expr.trim() !== "" && (
-            <p className="text-xs text-gray-500">{result.matches.length} match(es)</p>
-          )}
-        </div>
 
-        <div className="min-h-0 flex-1 overflow-auto p-2">
-          {result && result.ok && result.matches.length > 0 ? (
-            <ul className="space-y-1">
-              {result.matches.map((m, i) => (
-                <li key={i}>
-                  <button
-                    onClick={() => {
-                      onSelectPath?.(m.path);
-                      onClose();
-                    }}
-                    className="block w-full rounded px-2 py-1 text-left hover:bg-bg-softer"
-                  >
-                    <span className="font-mono text-xs text-sky-300">{m.path}</span>
-                    <span className="ml-2 font-mono text-xs text-gray-400">
-                      {preview(m.value)}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="p-3 text-sm text-gray-600">
-              {expr.trim() === ""
-                ? "Type a JSONPath expression or search term. Click a result to jump to it."
-                : "No matches."}
-            </p>
-          )}
-        </div>
+            {/* Replace row */}
+            <div className="flex items-center gap-2">
+              <input
+                value={replace}
+                onChange={(e) => setReplace(e.target.value)}
+                placeholder="Replace"
+                className="min-w-0 flex-1 rounded border border-border bg-bg px-2 py-1.5 font-mono text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+              <Button onClick={replaceCurrent} disabled={matches.length === 0}>
+                Replace
+              </Button>
+              <Button onClick={replaceAll} disabled={matches.length === 0}>
+                All
+              </Button>
+              <Button
+                variant="primary"
+                onClick={sendAllToOutput}
+                disabled={query === ""}
+                title="List all matches in the Output panel"
+              >
+                Find all
+              </Button>
+            </div>
+
+            {invalidRegex && <Banner kind="error">Invalid regular expression.</Banner>}
+          </div>
+        ) : (
+          <>
+            <div className="space-y-2 border-b border-border p-3">
+              <input
+                ref={findRef}
+                value={expr}
+                onChange={(e) => setExpr(e.target.value)}
+                placeholder="$..email"
+                className="w-full rounded border border-border bg-bg px-3 py-2 font-mono text-sm text-gray-200 focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+              {!parsed.ok && input.trim() !== "" && (
+                <Banner kind="error">{parsed.error.message}</Banner>
+              )}
+              {jpResult && !jpResult.ok && <Banner kind="error">{jpResult.error}</Banner>}
+              {jpResult && jpResult.ok && expr.trim() !== "" && (
+                <p className="text-xs text-gray-500">
+                  {jpResult.matches.length} match(es)
+                </p>
+              )}
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto p-2">
+              {jpResult && jpResult.ok && jpResult.matches.length > 0 ? (
+                <ul className="space-y-1">
+                  {jpResult.matches.map((m, i) => (
+                    <li key={i}>
+                      <button
+                        onClick={() => {
+                          onSelectPath?.(m.path);
+                          onClose();
+                        }}
+                        className="block w-full rounded px-2 py-1 text-left hover:bg-bg-softer"
+                      >
+                        <span className="font-mono text-xs text-sky-300">{m.path}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="p-3 text-sm text-gray-600">
+                  Enter a JSONPath expression. Click a result to jump to it.
+                </p>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
-}
-
-function preview(v: unknown): string {
-  const s = typeof v === "string" ? `"${v}"` : JSON.stringify(v);
-  if (!s) return "";
-  return s.length > 80 ? s.slice(0, 77) + "…" : s;
 }

@@ -12,7 +12,8 @@ import { json } from "@codemirror/lang-json";
 import { EditorView } from "@codemirror/view";
 import { EditorSelection } from "@codemirror/state";
 import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
-import { githubDark } from "@uiw/codemirror-theme-github";
+import { githubDark, githubLight } from "@uiw/codemirror-theme-github";
+import { useTheme } from "./theme";
 
 export interface EditorMarker {
   /** 0-based character offset. */
@@ -24,7 +25,7 @@ export interface EditorMarker {
 
 /** Imperative handle: select and scroll to a source range. */
 export interface JsonEditorHandle {
-  focusRange: (from: number, to: number) => void;
+  focusRange: (from: number, to: number, opts?: { focus?: boolean }) => void;
 }
 
 interface Props {
@@ -37,6 +38,8 @@ interface Props {
   language?: "json" | "text";
   /** Editor font size in px (zoom). */
   fontSize?: number;
+  /** Fired when the user (not code) changes the selection/cursor. */
+  onUserSelect?: () => void;
 }
 
 const wrap = EditorView.lineWrapping;
@@ -50,13 +53,17 @@ const JsonEditor = forwardRef<JsonEditorHandle, Props>(function JsonEditor(
     markers,
     language = "json",
     fontSize = 13,
+    onUserSelect,
   },
   handleRef,
 ) {
   const ref = useRef<ReactCodeMirrorRef>(null);
+  const { theme } = useTheme();
+  const onUserSelectRef = useRef(onUserSelect);
+  onUserSelectRef.current = onUserSelect;
 
   useImperativeHandle(handleRef, () => ({
-    focusRange(from: number, to: number) {
+    focusRange(from: number, to: number, opts?: { focus?: boolean }) {
       const view = ref.current?.view;
       if (!view) return;
       const len = view.state.doc.length;
@@ -66,12 +73,22 @@ const JsonEditor = forwardRef<JsonEditorHandle, Props>(function JsonEditor(
         selection: EditorSelection.range(a, b),
         scrollIntoView: true,
       });
-      view.focus();
+      if (opts?.focus !== false) view.focus();
     },
   }));
 
   const extensions = useMemo(() => {
-    const ext = [wrap];
+    const ext = [
+      wrap,
+      EditorView.updateListener.of((u) => {
+        if (
+          u.selectionSet &&
+          u.transactions.some((t) => t.isUserEvent("select"))
+        ) {
+          onUserSelectRef.current?.();
+        }
+      }),
+    ];
     if (language === "json") ext.push(json(), lintGutter());
     return ext;
   }, [language]);
@@ -94,7 +111,7 @@ const JsonEditor = forwardRef<JsonEditorHandle, Props>(function JsonEditor(
     <CodeMirror
       ref={ref}
       value={value}
-      theme={githubDark}
+      theme={theme === "light" ? githubLight : githubDark}
       readOnly={readOnly}
       editable={!readOnly}
       placeholder={placeholder}
@@ -105,6 +122,7 @@ const JsonEditor = forwardRef<JsonEditorHandle, Props>(function JsonEditor(
         foldGutter: true,
         autocompletion: false,
         highlightActiveLineGutter: !readOnly,
+        searchKeymap: false, // Cmd/Ctrl+F opens our unified Find modal instead
       }}
       onChange={onChange}
       style={{ height: "100%", fontSize }}

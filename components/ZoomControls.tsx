@@ -22,6 +22,9 @@ export default function ZoomControls({
     "flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:bg-bg-softer hover:text-gray-200 disabled:opacity-40";
   return (
     <div className={`flex items-center gap-0.5 ${className}`}>
+      <span className="mr-1 text-[9px] font-normal uppercase tracking-wide text-gray-600">
+        Zoom
+      </span>
       <button
         className={btn}
         onClick={() => setSize(Math.max(min, size - 1))}

@@ -9,12 +9,15 @@ import Tooltip from "@/components/Tooltip";
 import QueryModal from "@/components/QueryModal";
 import { ConsoleProvider } from "@/components/console";
 import { DocumentActionsProvider } from "@/components/DocumentActions";
+import { useTheme } from "@/components/theme";
 import { Button, ToastProvider } from "@/components/ui";
 import type { JsonEditorHandle } from "@/components/JsonEditor";
 import { TOOLS } from "@/components/tools/registry";
 import type { ToolId } from "@/components/tools/types";
 import { useHistory } from "@/lib/history";
 import { locateAll } from "@/lib/json/locate";
+import { validate } from "@/lib/json/validate";
+import { JSONPath } from "jsonpath-plus";
 import {
   loadState,
   saveState,
@@ -23,6 +26,15 @@ import {
 } from "@/lib/persist";
 
 const ToolHost = dynamic(() => import("@/components/ToolHost"), { ssr: false });
+
+/** Derive a short workspace name from the last segment of a JSONPath. */
+function nameFromPath(path: string): string {
+  const m = path.match(/(?:\.([\w$]+)|\[(\d+)\]|\['([^']+)'\])\s*$/);
+  if (!m) return "subtree";
+  if (m[1]) return m[1];
+  if (m[2] != null) return `[${m[2]}]`;
+  return m[3] ?? "subtree";
+}
 
 /** True when the viewport is at the `lg` breakpoint (1024px) or wider. */
 function useIsDesktop() {
@@ -68,9 +80,9 @@ export default function Page() {
       const mod = e.metaKey || e.ctrlKey;
       if (!mod) return;
       const k = e.key.toLowerCase();
-      if (k === "k") {
+      if (k === "k" || k === "f") {
         e.preventDefault();
-        setQueryOpen((o) => !o);
+        setQueryOpen((o) => (k === "f" ? true : !o));
       } else if (k === "z" && !e.shiftKey) {
         e.preventDefault();
         history.undo();
@@ -151,16 +163,36 @@ export default function Page() {
     [activeId, workspaces, history],
   );
 
-  const addWorkspace = useCallback(() => {
-    const id = uuid();
-    setWorkspaces((ws) => [
-      ...ws,
-      { id, name: `Workspace ${ws.length + 1}`, content: "" },
-    ]);
-    setActiveId(id);
-    history.reset("");
-    setSelectedPath(null);
-  }, [history]);
+  const addWorkspace = useCallback(
+    (content = "", name?: string) => {
+      const id = uuid();
+      setWorkspaces((ws) => [
+        ...ws,
+        { id, name: name ?? `Workspace ${ws.length + 1}`, content },
+      ]);
+      setActiveId(id);
+      history.reset(content);
+      setSelectedPath(null);
+    },
+    [history],
+  );
+
+  // Open a node's subtree (resolved by JSONPath) in a new workspace.
+  const openSubtree = useCallback(
+    (path: string) => {
+      const v = validate(history.value);
+      if (!v.ok) return;
+      let value: unknown;
+      try {
+        value = JSONPath({ path, json: v.value as object, wrap: false });
+      } catch {
+        return;
+      }
+      if (value === undefined) return;
+      addWorkspace(JSON.stringify(value, null, 2), nameFromPath(path));
+    },
+    [history.value, addWorkspace],
+  );
 
   const closeWorkspace = useCallback(
     (id: string) => {
@@ -196,6 +228,9 @@ export default function Page() {
       onChange={history.replace}
       onReset={history.set}
       editorRef={inputEditor}
+      selectedPath={selectedPath}
+      onSelectPath={onSelectPath}
+      onDeselect={() => setSelectedPath(null)}
       workspaces={workspaces}
       activeId={activeId}
       onSwitchWorkspace={switchWorkspace}
@@ -249,6 +284,7 @@ export default function Page() {
                   input={history.value}
                   selectedPath={selectedPath}
                   onSelect={onSelectPath}
+                  onOpenSubtree={openSubtree}
                   onClose={() => setMobileTreeOpen(false)}
                 />
               </aside>
@@ -269,6 +305,7 @@ export default function Page() {
                   input={history.value}
                   selectedPath={selectedPath}
                   onSelect={onSelectPath}
+                  onOpenSubtree={openSubtree}
                 />
               }
               second={workspace}
@@ -281,8 +318,12 @@ export default function Page() {
 
       <QueryModal
         input={history.value}
+        setInput={history.set}
         open={queryOpen}
         onClose={() => setQueryOpen(false)}
+        focusRange={(from, to) =>
+          inputEditor.current?.focusRange(from, to, { focus: false })
+        }
         onSelectPath={onSelectPath}
       />
       </DocumentActionsProvider>
@@ -363,7 +404,20 @@ function Header({
             ⌘K
           </kbd>
         </Button>
+        <ThemeToggle />
       </div>
     </header>
+  );
+}
+
+function ThemeToggle() {
+  const { theme, toggle } = useTheme();
+  return (
+    <Button
+      onClick={toggle}
+      title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+    >
+      {theme === "dark" ? "☀" : "☾"}
+    </Button>
   );
 }
