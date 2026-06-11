@@ -35,6 +35,8 @@ interface Props {
   markers?: EditorMarker[];
   /** Language hint; defaults to JSON. Pass "text" for plain output. */
   language?: "json" | "text";
+  /** Editor font size in px (zoom). */
+  fontSize?: number;
 }
 
 const wrap = EditorView.lineWrapping;
@@ -47,6 +49,7 @@ const JsonEditor = forwardRef<JsonEditorHandle, Props>(function JsonEditor(
     placeholder,
     markers,
     language = "json",
+    fontSize = 13,
   },
   handleRef,
 ) {
@@ -104,7 +107,7 @@ const JsonEditor = forwardRef<JsonEditorHandle, Props>(function JsonEditor(
         highlightActiveLineGutter: !readOnly,
       }}
       onChange={onChange}
-      style={{ height: "100%" }}
+      style={{ height: "100%", fontSize }}
       height="100%"
     />
   );

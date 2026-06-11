@@ -12,7 +12,7 @@ export const TOOLS: (ToolMeta & { component: ComponentType<ToolProps> })[] = [
     id: "format",
     label: "Format",
     component: FormatTool,
-    info: "Pretty-print, minify or sort the document. Validate checks it's well-formed (result shown as a toast); Repair fixes quotes, trailing commas, comments and Python literals; Unescape unwraps stringified JSON, including nested escaped values inside fields.",
+    info: "Pretty-print, minify or sort the document. Validate checks it's well-formed; Repair fixes missing colons & commas, quotes, trailing commas, comments and Python literals; Unescape unwraps stringified JSON, including nested escaped values inside fields.",
   },
   {
     id: "anonymize",

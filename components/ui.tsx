@@ -54,6 +54,40 @@ export function Button({
   );
 }
 
+// --- Switch (toggle) -------------------------------------------------------
+
+export function Switch({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className="inline-flex cursor-pointer select-none items-center gap-1.5 whitespace-nowrap text-sm font-medium text-gray-300"
+    >
+      <span
+        className={`relative inline-block h-4 w-7 shrink-0 rounded-full transition-colors ${
+          checked ? "bg-green-500" : "border border-border bg-bg-softer"
+        }`}
+      >
+        <span
+          className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-white shadow transition-all"
+          style={{ left: checked ? 14 : 2 }}
+        />
+      </span>
+      {label}
+    </button>
+  );
+}
+
 // --- Select ----------------------------------------------------------------
 
 export function Select({

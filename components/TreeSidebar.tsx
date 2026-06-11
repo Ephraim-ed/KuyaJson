@@ -1,9 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import TreeView from "./TreeView";
+import ZoomControls from "./ZoomControls";
 import { buildTree, filterTree } from "@/lib/json/tree";
 import { validate } from "@/lib/json/validate";
+
+const ZOOM_KEY = "tree:fontSize";
 
 interface Props {
   input: string;
@@ -20,7 +23,17 @@ export default function TreeSidebar({
   onClose,
 }: Props) {
   const [filter, setFilter] = useState("");
+  const [fontSize, setFontSize] = useState(13);
   const parsed = useMemo(() => validate(input), [input]);
+
+  useEffect(() => {
+    const s = Number(localStorage.getItem(ZOOM_KEY));
+    if (s) setFontSize(Math.min(28, Math.max(9, s)));
+  }, []);
+  function changeZoom(n: number) {
+    setFontSize(n);
+    localStorage.setItem(ZOOM_KEY, String(n));
+  }
   const tree = useMemo(
     () => (parsed.ok ? buildTree(parsed.value) : null),
     [parsed],
@@ -37,10 +50,11 @@ export default function TreeSidebar({
         <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
           Structure
         </span>
+        <ZoomControls className="ml-auto" size={fontSize} setSize={changeZoom} />
         {onClose && (
           <button
             onClick={onClose}
-            className="ml-auto px-1 text-gray-400 hover:text-gray-200 lg:hidden"
+            className="px-1 text-gray-400 hover:text-gray-200 lg:hidden"
             aria-label="Close tree"
           >
             ✕
@@ -81,6 +95,7 @@ export default function TreeSidebar({
             onSelect={onSelect}
             selectedPath={selectedPath}
             forceOpen={filtering}
+            fontSize={fontSize}
           />
         ) : (
           <p className="p-3 text-xs text-gray-600">No matches for “{filter}”.</p>

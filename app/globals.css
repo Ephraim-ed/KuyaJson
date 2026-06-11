@@ -19,7 +19,7 @@ body {
 /* CodeMirror sizing: let the editor flex to fill its container */
 .cm-editor {
   height: 100%;
-  font-size: 13px;
+  font-size: inherit;
 }
 .cm-scroller {
   font-family: var(--font-mono), ui-monospace, monospace;
@@ -69,6 +69,28 @@ body {
 }
 .cm-panel.cm-search button {
   margin: 0;
+}
+
+/* Chrome-style workspace tabs: the active tab has flared bottom corners that
+   curve out into the tab strip. The curve colour matches the active tab bg. */
+.ctab-active::before,
+.ctab-active::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  width: 8px;
+  height: 8px;
+  background: #21262d; /* = bg-softer (active tab) */
+}
+.ctab-active::before {
+  left: -8px;
+  -webkit-mask: radial-gradient(circle at top left, transparent 8px, #000 8.5px);
+  mask: radial-gradient(circle at top left, transparent 8px, #000 8.5px);
+}
+.ctab-active::after {
+  right: -8px;
+  -webkit-mask: radial-gradient(circle at top right, transparent 8px, #000 8.5px);
+  mask: radial-gradient(circle at top right, transparent 8px, #000 8.5px);
 }
 
 /* jsondiffpatch visual delta styling (dark) */

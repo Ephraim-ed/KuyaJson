@@ -1,57 +1,75 @@
 "use client";
 
-import { type RefObject, useMemo, useRef, useState } from "react";
-import JsonEditor, {
-  type EditorMarker,
-  type JsonEditorHandle,
-} from "./JsonEditor";
-import { Button } from "./ui";
-import { SAMPLE_JSON } from "@/lib/sample";
+import { type RefObject, useEffect, useRef, useState } from "react";
+import JsonEditor, { type JsonEditorHandle } from "./JsonEditor";
+import WorkspaceTabs from "./WorkspaceTabs";
+import ZoomControls from "./ZoomControls";
+import { ConsolePanel, useConsole } from "./console";
 import { validate } from "@/lib/json/validate";
+import type { Workspace } from "@/lib/persist";
+
+const ZOOM_KEY = "editor:fontSize";
 
 interface Props {
   value: string;
   onChange: (v: string) => void;
-  onUndo: () => void;
-  onRedo: () => void;
-  canUndo: boolean;
-  canRedo: boolean;
   onReset: (v: string) => void;
   editorRef?: RefObject<JsonEditorHandle | null>;
+  // Workspace tab bar
+  workspaces: Workspace[];
+  activeId: string;
+  onSwitchWorkspace: (id: string) => void;
+  onAddWorkspace: () => void;
+  onCloseWorkspace: (id: string) => void;
+  onRenameWorkspace: (id: string, name: string) => void;
 }
 
 /**
- * The single working-document editor. Holds the JSON that every tool reads and
- * transforms in place. Shows live inline validation errors and document actions
- * (undo/redo, load file, sample, clear, drag-and-drop).
+ * The single working-document section: the workspace tab bar, the editor, and a
+ * resizable error console below. Validation results go to the console (no inline
+ * markers); document actions live in each tool's control row.
  */
 export default function InputPanel({
   value,
   onChange,
-  onUndo,
-  onRedo,
-  canUndo,
-  canRedo,
   onReset,
   editorRef,
+  workspaces,
+  activeId,
+  onSwitchWorkspace,
+  onAddWorkspace,
+  onCloseWorkspace,
+  onRenameWorkspace,
 }: Props) {
   const [dragging, setDragging] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
+  const [fontSize, setFontSize] = useState(13);
+  const { push, clearSource } = useConsole();
+  const prevMsg = useRef<string | null>(null);
 
-  // Live validation → inline error marker.
-  const markers: EditorMarker[] = useMemo(() => {
-    if (value.trim() === "") return [];
-    const r = validate(value);
-    if (r.ok || r.error.position == null) return [];
-    return [
-      {
-        from: Math.max(0, r.error.position - 1),
-        to: r.error.position + 1,
-        message: r.error.message,
-        severity: "error",
-      },
-    ];
-  }, [value]);
+  // Restore / persist editor zoom.
+  useEffect(() => {
+    const s = Number(localStorage.getItem(ZOOM_KEY));
+    if (s) setFontSize(Math.min(28, Math.max(9, s)));
+  }, []);
+  function changeZoom(n: number) {
+    setFontSize(n);
+    localStorage.setItem(ZOOM_KEY, String(n));
+  }
+
+  // Report the current validation error to the console; clear it once fixed.
+  useEffect(() => {
+    const r = value.trim() === "" ? { ok: true as const } : validate(value);
+    if (r.ok) {
+      if (prevMsg.current !== null) {
+        clearSource("validate"); // error resolved → remove it
+        prevMsg.current = null;
+      }
+    } else if (prevMsg.current !== r.error.message) {
+      clearSource("validate"); // replace any stale error
+      push("error", r.error.message, "validate");
+      prevMsg.current = r.error.message;
+    }
+  }, [value, push, clearSource]);
 
   function loadFile(file: File) {
     const reader = new FileReader();
@@ -74,54 +92,34 @@ export default function InputPanel({
         if (file) loadFile(file);
       }}
     >
-      <div className="flex flex-wrap items-center gap-2 border-b border-border px-2 py-1.5">
-        <span className="px-1 text-xs font-medium uppercase tracking-wide text-gray-500">
-          Document
-        </span>
-        <div className="ml-auto flex items-center gap-1.5">
-          <Button onClick={onUndo} disabled={!canUndo} title="Undo (Ctrl/Cmd+Z)">
-            ↶
-          </Button>
-          <Button onClick={onRedo} disabled={!canRedo} title="Redo (Ctrl/Cmd+Shift+Z)">
-            ↷
-          </Button>
-          <Button onClick={() => fileRef.current?.click()} title="Load a .json file">
-            Load
-          </Button>
-          <Button onClick={() => onReset(SAMPLE_JSON)} title="Insert sample JSON">
-            Sample
-          </Button>
-          <Button
-            variant="danger"
-            onClick={() => onReset("")}
-            disabled={!value}
-            title="Clear"
-          >
-            Clear
-          </Button>
-        </div>
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".json,.txt,application/json,text/plain"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) loadFile(file);
-            e.target.value = "";
-          }}
+      {/* Workspace tabs (this row is exclusive to tabs) */}
+      <div className="border-b border-border">
+        <WorkspaceTabs
+          workspaces={workspaces}
+          activeId={activeId}
+          onSwitch={onSwitchWorkspace}
+          onAdd={onAddWorkspace}
+          onClose={onCloseWorkspace}
+          onRename={onRenameWorkspace}
         />
       </div>
 
-      <div className="min-h-0 flex-1">
+      {/* Editor */}
+      <div className="relative min-h-0 flex-1">
         <JsonEditor
           ref={editorRef}
           value={value}
           onChange={onChange}
-          markers={markers}
+          fontSize={fontSize}
           placeholder="Paste or drop JSON here…"
         />
+        <div className="absolute bottom-2 right-3 z-10 rounded-md border border-border bg-bg-soft/90 px-1 py-0.5 opacity-60 shadow-sm backdrop-blur transition-opacity hover:opacity-100">
+          <ZoomControls size={fontSize} setSize={changeZoom} />
+        </div>
       </div>
+
+      {/* Error console */}
+      <ConsolePanel />
 
       {dragging && (
         <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center border-2 border-dashed border-accent bg-bg/80 text-sm text-accent">

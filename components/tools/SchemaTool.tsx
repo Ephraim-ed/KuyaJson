@@ -5,6 +5,8 @@ import ToolFrame from "./ToolFrame";
 import OutputPanel from "../OutputPanel";
 import JsonEditor from "../JsonEditor";
 import { Banner, Button } from "../ui";
+import { useConsole } from "../console";
+import { DocumentActions } from "../DocumentActions";
 import { type ToolProps } from "./types";
 import { generateSchema, validateAgainstSchema } from "@/lib/json/schema";
 
@@ -17,6 +19,7 @@ export default function SchemaTool({ input, editor }: ToolProps) {
   const [generated, setGenerated] = useState("");
   const [report, setReport] = useState<Report>(null);
   const [busy, setBusy] = useState(false);
+  const { push, clearSource } = useConsole();
 
   async function generate() {
     setBusy(true);
@@ -35,8 +38,17 @@ export default function SchemaTool({ input, editor }: ToolProps) {
   }
 
   function runValidate() {
+    clearSource("schema"); // drop previous (possibly now-fixed) results
     const r = validateAgainstSchema(input, schemaText);
     setReport({ valid: r.valid, errors: r.errors, fatal: r.fatal });
+    if (r.fatal) {
+      push("error", r.fatal, "schema");
+    } else if (r.valid) {
+      push("ok", "Document matches the schema", "schema");
+    } else {
+      push("error", `Schema validation failed (${r.errors.length} issue${r.errors.length === 1 ? "" : "s"})`, "schema");
+      r.errors.forEach((e) => push("error", e, "schema"));
+    }
   }
 
   const controls = (
@@ -57,6 +69,7 @@ export default function SchemaTool({ input, editor }: ToolProps) {
             Validate
           </Button>
         )}
+        <DocumentActions />
       </div>
       {report &&
         (report.fatal ? (

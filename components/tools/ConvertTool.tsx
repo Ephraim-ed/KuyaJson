@@ -4,6 +4,7 @@ import { useState } from "react";
 import ToolFrame from "./ToolFrame";
 import OutputPanel from "../OutputPanel";
 import { Button, Select } from "../ui";
+import { DocumentActions } from "../DocumentActions";
 import { type ToolProps } from "./types";
 import { convert, type ConvertTarget } from "@/lib/json/convert";
 
@@ -57,6 +58,7 @@ export default function ConvertTool({ input, editor }: ToolProps) {
         {busy ? "Converting…" : "Convert"}
       </Button>
       {error && <span className="text-xs text-red-400">{error}</span>}
+      <DocumentActions className="ml-auto" />
     </div>
   );
 

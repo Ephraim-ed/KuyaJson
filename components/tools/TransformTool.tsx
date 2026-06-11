@@ -3,6 +3,7 @@
 import { useState } from "react";
 import ToolFrame from "./ToolFrame";
 import { Button, Select } from "../ui";
+import { DocumentActions } from "../DocumentActions";
 import { type ToolProps } from "./types";
 import { validate } from "@/lib/json/validate";
 import {
@@ -91,6 +92,7 @@ export default function TransformTool({ input, setInput, editor }: ToolProps) {
           Run
         </Button>
         {error && <span className="text-xs text-red-400">{error}</span>}
+        <DocumentActions className="ml-auto" />
       </div>
       {showMerge && (
         <textarea

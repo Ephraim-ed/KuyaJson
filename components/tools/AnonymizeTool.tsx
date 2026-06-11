@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Split from "../Split";
 import { Banner, Button, Select } from "../ui";
+import { DocumentActions } from "../DocumentActions";
 import { type ToolProps } from "./types";
 import { runAnonymize } from "@/lib/workers/client";
 import { validate } from "@/lib/json/validate";
@@ -160,6 +161,7 @@ export default function AnonymizeTool({ input, setInput, editor }: ToolProps) {
           <span className="text-xs text-gray-500">{count} values replaced (applied to document)</span>
         )}
         {error && <span className="text-xs text-red-400">{error}</span>}
+        <DocumentActions className="ml-auto" />
       </div>
       <div className="min-h-0 flex-1">
         <Split

@@ -1,66 +1,89 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ToolFrame from "./ToolFrame";
-import { Button, Select, useToast } from "../ui";
+import Tooltip from "../Tooltip";
+import { Button, Select, Switch, useToast } from "../ui";
+import { useConsole } from "../console";
+import { DocumentActions } from "../DocumentActions";
 import { type ToolProps } from "./types";
 import { runFormat, runMinify, runSort } from "@/lib/workers/client";
-import { type IndentStyle } from "@/lib/json/format";
+import { format, type IndentStyle } from "@/lib/json/format";
 import { validate } from "@/lib/json/validate";
-import { runRepair } from "@/lib/workers/client";
-import type { RepairResult } from "@/lib/json/repair";
+import { repair } from "@/lib/json/repair";
 import { unescapeJson } from "@/lib/json/unescape";
 
 export default function FormatTool({ input, setInput, editor }: ToolProps) {
   const [indent, setIndent] = useState<IndentStyle>("2");
+  const [autoValidate, setAutoValidate] = useState(true);
+  const [autoRepair, setAutoRepair] = useState(false);
+  const [autoUnescape, setAutoUnescape] = useState(false);
   const toast = useToast();
+  const { push } = useConsole();
 
-  async function apply(run: () => Promise<string>, okText?: string) {
+  async function apply(run: () => Promise<string>, label: string) {
     try {
       setInput(await run());
-      if (okText) toast(okText, { kind: "ok" });
+      push("ok", `${label} applied`, "format");
     } catch (e) {
-      toast(e instanceof Error ? e.message : "Invalid JSON.", { kind: "error" });
+      const msg = e instanceof Error ? e.message : "Invalid JSON.";
+      toast(msg, { kind: "error" });
+      push("error", msg, label.toLowerCase());
     }
   }
 
-  function doValidate() {
-    if (input.trim() === "") {
-      toast("Nothing to validate — the document is empty.", { kind: "info" });
-      return;
-    }
-    const r = validate(input);
-    if (r.ok) toast("Valid JSON ✓", { kind: "ok" });
-    else toast(r.error.message, { kind: "error" });
-  }
+  // Auto-apply Unescape / Repair (debounced) while their toggles are on.
+  useEffect(() => {
+    if (!autoUnescape && !autoRepair) return;
+    const id = window.setTimeout(() => {
+      let text = input;
+      const applied: string[] = [];
 
-  async function doRepair() {
-    const r = (await runRepair(input, 2)) as RepairResult;
-    if (r.error) {
-      toast(r.error, { kind: "error" });
-      return;
-    }
-    if (!r.changed) {
-      toast("Already valid JSON — nothing to repair.", { kind: "info" });
-      return;
-    }
-    setInput(r.text);
-    toast(`Repaired ✓ — ${r.fixes.join("; ")}`, { kind: "ok", duration: 4500 });
-  }
+      if (autoUnescape) {
+        const r = unescapeJson(text);
+        if (r.changed) {
+          text = r.text;
+          applied.push("unescaped");
+          push(
+            "ok",
+            r.expanded > 0
+              ? `Unescaped (expanded ${r.expanded} nested value${r.expanded === 1 ? "" : "s"})`
+              : "Unescaped JSON",
+            "unescape",
+          );
+        }
+      }
+      if (autoRepair) {
+        const v = validate(text);
+        if (!v.ok) {
+          const r = repair(text, 2);
+          if (!r.error && r.changed) {
+            text = r.text;
+            applied.push("repaired");
+            push("ok", `Repaired: ${r.fixes.join("; ")}`, "repair");
+          } else if (r.error) {
+            push("error", r.error, "repair");
+          }
+        }
+      }
+      // Normalize formatting when the result is valid.
+      const v = validate(text);
+      if (v.ok) {
+        try {
+          text = format(text, indent);
+        } catch {
+          /* leave as-is */
+        }
+      }
 
-  function unescape() {
-    const { text, changed, expanded } = unescapeJson(input);
-    if (!changed) {
-      toast("No escaped JSON found to unwrap.", { kind: "info" });
-      return;
-    }
-    apply(
-      () => runFormat(text, indent),
-      expanded > 0
-        ? `Expanded ${expanded} nested JSON value${expanded === 1 ? "" : "s"}.`
-        : "Unwrapped escaped JSON.",
-    );
-  }
+      if (applied.length > 0 && text !== input) {
+        setInput(text);
+        toast(`Auto-${applied.join(" & ")} ✓`, { kind: "ok" });
+      }
+    }, 700);
+    return () => window.clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [input, autoUnescape, autoRepair, indent]);
 
   const controls = (
     <div className="flex flex-wrap items-center gap-2 border-b border-border px-2 py-1.5">
@@ -74,23 +97,36 @@ export default function FormatTool({ input, setInput, editor }: ToolProps) {
           { value: "tab", label: "Tabs" },
         ]}
       />
-      <Button variant="primary" onClick={() => apply(() => runFormat(input, indent))}>
-        Format
-      </Button>
-      <Button onClick={() => apply(() => runMinify(input))}>Minify</Button>
-      <Button onClick={() => apply(() => runSort(input, "asc", indent))}>
-        Sort keys
-      </Button>
+      <Tooltip text="Pretty-print the document with the chosen indentation." width={220}>
+        <Button
+          variant="primary"
+          onClick={() => apply(() => runFormat(input, indent), "Format")}
+        >
+          Format
+        </Button>
+      </Tooltip>
+      <Tooltip text="Compress to a single line (remove all whitespace)." width={220}>
+        <Button onClick={() => apply(() => runMinify(input), "Minify")}>Minify</Button>
+      </Tooltip>
+      <Tooltip text="Reorder object keys alphabetically (recursively)." width={220}>
+        <Button onClick={() => apply(() => runSort(input, "asc", indent), "Sort keys")}>
+          Sort keys
+        </Button>
+      </Tooltip>
+
       <span className="mx-1 h-5 w-px bg-border" />
-      <Button onClick={doValidate} title="Check that the document is valid JSON">
-        Validate
-      </Button>
-      <Button onClick={doRepair} title="Fix quotes, commas, comments, Python literals…">
-        Repair
-      </Button>
-      <Button onClick={unescape} title="Unwrap stringified / escaped JSON">
-        Unescape
-      </Button>
+
+      <Tooltip text="Continuously check the document and show its validity." width={250}>
+        <Switch label="Validate" checked={autoValidate} onChange={setAutoValidate} />
+      </Tooltip>
+      <Tooltip text="Automatically fix missing colons & commas, quotes, trailing commas, comments and Python literals when invalid." width={280}>
+        <Switch label="Repair" checked={autoRepair} onChange={setAutoRepair} />
+      </Tooltip>
+      <Tooltip text="Automatically unwrap stringified / escaped JSON, including nested values." width={260}>
+        <Switch label="Unescape" checked={autoUnescape} onChange={setAutoUnescape} />
+      </Tooltip>
+
+      <DocumentActions className="ml-auto" />
     </div>
   );
 

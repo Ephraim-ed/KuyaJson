@@ -8,7 +8,12 @@
       "Read(//tmp/**)",
       "Bash(curl -s -o /dev/null -w \"HTTP %{http_code}\\\\n\" http://localhost:3000)",
       "Bash(pkill -f \"next dev\")",
-      "Bash(pkill -f \"next-server\")"
+      "Bash(pkill -f \"next-server\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000)",
+      "Bash(pkill -f \"next dev\" 2>/dev/null; pkill -f \"next-server\" 2>/dev/null; sleep 1 *)"
+    ],
+    "additionalDirectories": [
+      "/private/tmp"
     ]
   }
 }

@@ -52,7 +52,6 @@ function Node({
         className={`group flex cursor-pointer items-center gap-1.5 rounded px-1 ${
           selected ? "bg-accent/20 ring-1 ring-accent/40" : "hover:bg-bg-soft"
         }`}
-        style={{ paddingLeft: depth * 14 + 4 }}
         title={`Focus ${node.path}`}
       >
         {isContainer ? (
@@ -70,15 +69,18 @@ function Node({
           <span className="w-4 shrink-0" />
         )}
 
-        <span className="font-mono text-[13px] text-sky-200">{node.key}</span>
+        <span className="shrink-0 font-mono text-[1em] text-sky-200">
+          {node.key}
+          <span className="text-gray-500">:</span>
+        </span>
 
         {isContainer ? (
-          <span className="text-xs text-gray-500">
+          <span className="text-[0.82em] text-gray-500">
             {node.type === "array" ? `[${node.size}]` : `{${node.size}}`}
           </span>
         ) : (
           <span
-            className={`truncate font-mono text-[13px] ${TYPE_COLOR[node.type]}`}
+            className={`truncate font-mono text-[1em] ${TYPE_COLOR[node.type]}`}
           >
             {renderValue(node)}
           </span>
@@ -87,14 +89,14 @@ function Node({
         <button
           onClick={copyPath}
           title="Copy JSONPath"
-          className="ml-auto hidden shrink-0 px-1 text-xs text-gray-500 hover:text-gray-200 group-hover:block"
+          className="ml-auto hidden shrink-0 px-1 text-[0.82em] text-gray-500 hover:text-gray-200 group-hover:block"
         >
           ⧉
         </button>
       </div>
 
       {isContainer && expanded && node.children && (
-        <div>
+        <div className="ml-[9px] border-l border-border pl-2">
           {node.children.map((child, i) => (
             <Node
               key={i}
@@ -116,9 +118,13 @@ export default function TreeView({
   onSelect,
   selectedPath,
   forceOpen,
-}: TreeProps & { root: TreeNode }) {
+  fontSize = 13,
+}: TreeProps & { root: TreeNode; fontSize?: number }) {
   return (
-    <div className="h-full overflow-auto p-2 font-mono text-[13px]">
+    <div
+      className="h-full overflow-auto p-2 font-mono"
+      style={{ fontSize }}
+    >
       <Node
         node={root}
         depth={0}
