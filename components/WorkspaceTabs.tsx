@@ -23,10 +23,25 @@ export default function WorkspaceTabs({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (editingId) inputRef.current?.select();
   }, [editingId]);
+
+  // Mouse-wheel (vertical) scrolls the tab row horizontally.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth) return; // nothing to scroll
+      if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return; // let real horizontal pass
+      el.scrollLeft += e.deltaY;
+      e.preventDefault();
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, []);
 
   function startRename(w: Workspace) {
     setEditingId(w.id);
@@ -38,7 +53,10 @@ export default function WorkspaceTabs({
   }
 
   return (
-    <div className="flex items-end gap-1 overflow-x-auto overflow-y-hidden bg-bg px-2 pt-1.5">
+    <div
+      ref={scrollRef}
+      className="flex items-end gap-1 overflow-x-auto overflow-y-hidden bg-bg px-2 pt-1.5"
+    >
       {workspaces.map((w) => {
         const active = w.id === activeId;
         return (

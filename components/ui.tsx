@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import * as SwitchPrimitive from "@radix-ui/react-switch";
 
 // --- Button ----------------------------------------------------------------
 
@@ -67,25 +68,16 @@ export function Switch({
   label: string;
 }) {
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className="inline-flex cursor-pointer select-none items-center gap-1.5 whitespace-nowrap text-sm font-medium text-gray-300"
-    >
-      <span
-        className={`relative inline-block h-4 w-7 shrink-0 rounded-full transition-colors ${
-          checked ? "bg-green-500" : "border border-border bg-bg-softer"
-        }`}
+    <label className="inline-flex cursor-pointer select-none items-center gap-2 whitespace-nowrap text-sm font-medium text-gray-300">
+      <SwitchPrimitive.Root
+        checked={checked}
+        onCheckedChange={onChange}
+        className="peer inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent bg-bg-softer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-1 focus-visible:ring-offset-bg data-[state=checked]:bg-green-500"
       >
-        <span
-          className="absolute top-1/2 h-3 w-3 -translate-y-1/2 rounded-full bg-white shadow transition-all"
-          style={{ left: checked ? 14 : 2 }}
-        />
-      </span>
+        <SwitchPrimitive.Thumb className="pointer-events-none block h-4 w-4 rounded-full bg-white shadow-lg ring-0 transition-transform data-[state=checked]:translate-x-4 data-[state=unchecked]:translate-x-0" />
+      </SwitchPrimitive.Root>
       {label}
-    </button>
+    </label>
   );
 }
 
