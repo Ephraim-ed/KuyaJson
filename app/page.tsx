@@ -10,6 +10,7 @@ import QueryModal from "@/components/QueryModal";
 import { ConsoleProvider } from "@/components/console";
 import { DocumentActionsProvider } from "@/components/DocumentActions";
 import { useTheme } from "@/components/theme";
+import Onboarding from "@/components/Onboarding";
 import { Button, ToastProvider } from "@/components/ui";
 import type { JsonEditorHandle } from "@/components/JsonEditor";
 import { TOOLS } from "@/components/tools/registry";
@@ -55,6 +56,7 @@ export default function Page() {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [mobileTreeOpen, setMobileTreeOpen] = useState(false);
   const [queryOpen, setQueryOpen] = useState(false);
+  const [onboardOpen, setOnboardOpen] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const inputEditor = useRef<JsonEditorHandle | null>(null);
@@ -94,6 +96,15 @@ export default function Page() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [history]);
+
+  // Show onboarding on first visit.
+  useEffect(() => {
+    if (!localStorage.getItem("kuya-json:onboarded")) setOnboardOpen(true);
+  }, []);
+  const closeOnboarding = useCallback(() => {
+    setOnboardOpen(false);
+    localStorage.setItem("kuya-json:onboarded", "1");
+  }, []);
 
   // Restore workspaces (or migrate the old single-doc localStorage) on load.
   const loaded = useRef(false);
@@ -269,6 +280,7 @@ export default function Page() {
           showTreeToggle={showTree}
           onToggleTree={() => setMobileTreeOpen((o) => !o)}
           onOpenQuery={() => setQueryOpen(true)}
+          onOpenHelp={() => setOnboardOpen(true)}
         />
 
         <main className="relative min-h-0 flex-1 overflow-hidden">
@@ -326,6 +338,8 @@ export default function Page() {
         }
         onSelectPath={onSelectPath}
       />
+
+      <Onboarding open={onboardOpen} onClose={closeOnboarding} />
       </DocumentActionsProvider>
       </ConsoleProvider>
     </ToastProvider>
@@ -338,12 +352,14 @@ function Header({
   showTreeToggle,
   onToggleTree,
   onOpenQuery,
+  onOpenHelp,
 }: {
   active: ToolId;
   onSelect: (id: ToolId) => void;
   showTreeToggle: boolean;
   onToggleTree: () => void;
   onOpenQuery: () => void;
+  onOpenHelp: () => void;
 }) {
   return (
     <header className="flex shrink-0 flex-col gap-2 border-b border-border bg-bg-soft px-3 py-2 sm:flex-row sm:items-center">
@@ -403,6 +419,9 @@ function Header({
           <kbd className="ml-1 hidden rounded bg-bg px-1 text-[10px] text-gray-500 lg:inline">
             ⌘K
           </kbd>
+        </Button>
+        <Button onClick={onOpenHelp} title="Help / intro">
+          ?
         </Button>
         <ThemeToggle />
       </div>

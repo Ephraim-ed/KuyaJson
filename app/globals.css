@@ -82,6 +82,15 @@ body {
   outline: none;
 }
 
+/* Hide scrollbar chrome but keep scrollability */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Thin scrollbars */
 ::-webkit-scrollbar {
   width: 10px;
@@ -145,6 +154,142 @@ body {
   right: -8px;
   -webkit-mask: radial-gradient(circle at top right, transparent 8px, #000 8.5px);
   mask: radial-gradient(circle at top right, transparent 8px, #000 8.5px);
+}
+
+/* Onboarding animations */
+@keyframes kuya-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-kuya-pop {
+  animation: kuya-pop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes kuya-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.animate-kuya-fade {
+  animation: kuya-fade 0.25s ease-out;
+}
+
+@keyframes kuya-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.kuya-rise {
+  animation: kuya-rise 0.45s ease-out backwards;
+}
+
+@keyframes kuya-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+.kuya-bob {
+  animation: kuya-bob 2.6s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes kuya-wave {
+  0%,
+  55%,
+  100% {
+    transform: rotate(0deg);
+  }
+  65% {
+    transform: rotate(20deg);
+  }
+  75% {
+    transform: rotate(-10deg);
+  }
+  85% {
+    transform: rotate(16deg);
+  }
+}
+.kuya-wave {
+  animation: kuya-wave 3s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: 70% 80%;
+}
+
+@keyframes kuya-blink {
+  0%,
+  92%,
+  100% {
+    transform: scaleY(1);
+  }
+  96% {
+    transform: scaleY(0.1);
+  }
+}
+.kuya-eyes {
+  animation: kuya-blink 4.2s infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes kuya-sun-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+.kuya-sun {
+  animation: kuya-sun-spin 14s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes kuya-zfloat {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.7);
+  }
+  25% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-14px) scale(1.15);
+  }
+}
+.kuya-z {
+  animation: kuya-zfloat 2.4s ease-in-out infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kuya-bob,
+  .kuya-wave,
+  .kuya-eyes,
+  .kuya-sun,
+  .kuya-z,
+  .kuya-rise,
+  .animate-kuya-pop {
+    animation: none;
+  }
 }
 
 /* jsondiffpatch visual delta styling (dark) */

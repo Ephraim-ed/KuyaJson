@@ -10,7 +10,9 @@
       "Bash(pkill -f \"next dev\")",
       "Bash(pkill -f \"next-server\")",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:3000)",
-      "Bash(pkill -f \"next dev\" 2>/dev/null; pkill -f \"next-server\" 2>/dev/null; sleep 1 *)"
+      "Bash(pkill -f \"next dev\" 2>/dev/null; pkill -f \"next-server\" 2>/dev/null; sleep 1 *)",
+      "Bash(node -e \"const l=require\\('lucide-react'\\); console.log\\('Braces' in l, 'Search' in l, 'Wrench' in l, 'Folders' in l, 'ListTree' in l, 'Terminal' in l, 'SunMoon' in l\\)\")",
+      "Bash(npm view *)"
     ],
     "additionalDirectories": [
       "/private/tmp"

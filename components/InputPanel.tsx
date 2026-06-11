@@ -5,6 +5,7 @@ import JsonEditor, { type JsonEditorHandle } from "./JsonEditor";
 import WorkspaceTabs from "./WorkspaceTabs";
 import ZoomControls from "./ZoomControls";
 import Breadcrumbs from "./Breadcrumbs";
+import KuyaSprite from "./KuyaSprite";
 import { DockPanel, useConsole } from "./console";
 import { validate } from "@/lib/json/validate";
 import type { Workspace } from "@/lib/persist";
@@ -123,8 +124,20 @@ export default function InputPanel({
           onChange={onChange}
           fontSize={fontSize}
           onUserSelect={onDeselect}
-          placeholder="Paste or drop JSON here…"
+          placeholder=""
         />
+        {value.trim() === "" && (
+          <div className="animate-kuya-fade pointer-events-none absolute inset-0 z-[5] flex flex-col items-center justify-center px-6 text-center">
+            <KuyaSprite size={88} />
+            <p className="mt-2 text-sm font-medium text-gray-300">
+              Start by adding some JSON
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              Type or paste here, drop a <span className="text-gray-400">.json</span> file,
+              or hit <span className="text-gray-400">Sample</span> above.
+            </p>
+          </div>
+        )}
         <div className="absolute bottom-2 right-3 z-10 rounded-md border border-border bg-bg-soft/90 px-1 py-0.5 opacity-60 shadow-sm backdrop-blur transition-opacity hover:opacity-100">
           <ZoomControls size={fontSize} setSize={changeZoom} />
         </div>

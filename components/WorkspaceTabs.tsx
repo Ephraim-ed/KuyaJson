@@ -38,7 +38,7 @@ export default function WorkspaceTabs({
   }
 
   return (
-    <div className="flex items-end gap-1 overflow-x-auto bg-bg px-2 pt-1.5">
+    <div className="flex items-end gap-1 overflow-x-auto overflow-y-hidden bg-bg px-2 pt-1.5">
       {workspaces.map((w) => {
         const active = w.id === activeId;
         return (

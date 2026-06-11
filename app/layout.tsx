@@ -21,7 +21,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${sans.variable} ${mono.variable}`}>
+    <html
+      lang="en"
+      className={`${sans.variable} ${mono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: noFlash }} />
       </head>

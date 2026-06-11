@@ -2,7 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Split from "../Split";
+import { VenetianMask, Info, ShieldCheck } from "lucide-react";
 import { Banner, Button, Select } from "../ui";
+import Tooltip from "../Tooltip";
 import { DocumentActions } from "../DocumentActions";
 import { type ToolProps } from "./types";
 import { runAnonymize } from "@/lib/workers/client";
@@ -73,18 +75,29 @@ export default function AnonymizeTool({ input, setInput, editor }: ToolProps) {
         <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
           Rules
         </span>
-        <Button className="ml-auto" onClick={() => setRules((rs) => [...rs, newRule()])}>
-          + Rule
+        <Button
+          variant="primary"
+          className="ml-auto"
+          onClick={() => run(rules)}
+          disabled={rules.length === 0}
+          title="Apply the rules below to the document"
+        >
+          Anonymize
         </Button>
+        <Button onClick={() => setRules((rs) => [...rs, newRule()])}>+ Rule</Button>
       </div>
 
       <div className="border-b border-border p-2">
         <div className="mb-1 flex items-center justify-between">
-          <span className="text-xs font-medium text-gray-400">
+          <span className="flex items-center gap-1 text-xs font-medium text-gray-400">
             Detected PII ({detected.length})
+            <Tooltip text="PII = Personally Identifiable Information — data that can identify someone (emails, phone numbers, SSNs, credit cards, IPs, names, addresses). Kuya auto-detects these so you can mask them.">
+              <Info size={12} className="cursor-help text-gray-500 hover:text-gray-300" />
+            </Tooltip>
           </span>
           <Button variant="primary" disabled={detected.length === 0} onClick={anonymizeAllPii}>
-            Anonymize all
+            <ShieldCheck size={15} />
+            Anonymize PII
           </Button>
         </div>
         <div className="max-h-40 space-y-1 overflow-auto">
@@ -167,14 +180,13 @@ export default function AnonymizeTool({ input, setInput, editor }: ToolProps) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex flex-wrap items-center gap-2 border-b border-border px-2 py-1.5">
-        <Button variant="primary" onClick={() => run(rules)}>
-          Anonymize
-        </Button>
         <Button
+          variant="primary"
           onClick={anonymizeEverything}
           title="Replace every value with a fake of the same type (strings, numbers, booleans), keeping structure & types"
         >
-          All values
+          <VenetianMask size={15} />
+          Anonymize all values
         </Button>
         {count != null && (
           <span className="text-xs text-gray-500">{count} values replaced (applied to document)</span>
