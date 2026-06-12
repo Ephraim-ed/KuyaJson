@@ -1,6 +1,7 @@
 "use client";
 
-import { type RefObject, useEffect, useRef, useState } from "react";
+import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
+import { useCtrlWheelZoom } from "@/lib/useCtrlWheelZoom";
 import JsonEditor, { type JsonEditorHandle } from "./JsonEditor";
 import WorkspaceTabs from "./WorkspaceTabs";
 import ZoomControls from "./ZoomControls";
@@ -53,6 +54,7 @@ export default function InputPanel({
 }: Props) {
   const [dragging, setDragging] = useState(false);
   const [fontSize, setFontSize] = useState(13);
+  const editorAreaRef = useRef<HTMLDivElement>(null);
   const { push, clearSource } = useConsole();
   const prevMsg = useRef<string | null>(null);
 
@@ -61,10 +63,11 @@ export default function InputPanel({
     const s = Number(localStorage.getItem(ZOOM_KEY));
     if (s) setFontSize(Math.min(28, Math.max(9, s)));
   }, []);
-  function changeZoom(n: number) {
+  const changeZoom = useCallback((n: number) => {
     setFontSize(n);
     localStorage.setItem(ZOOM_KEY, String(n));
-  }
+  }, []);
+  useCtrlWheelZoom(editorAreaRef, fontSize, changeZoom);
 
   // Report the current validation error to the console; clear it once fixed.
   useEffect(() => {
@@ -118,7 +121,7 @@ export default function InputPanel({
       </div>
 
       {/* Editor */}
-      <div className="relative min-h-0 flex-1">
+      <div ref={editorAreaRef} className="relative min-h-0 flex-1">
         <JsonEditor
           ref={editorRef}
           value={value}

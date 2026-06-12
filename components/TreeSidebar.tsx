@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ListChevronsUpDown, ChevronsUp, ChevronsDown } from "lucide-react";
 import TreeView from "./TreeView";
 import ZoomControls from "./ZoomControls";
 import Tooltip from "./Tooltip";
+import { useCtrlWheelZoom } from "@/lib/useCtrlWheelZoom";
 import { buildTree, filterTree } from "@/lib/json/tree";
 import { validate } from "@/lib/json/validate";
 
@@ -30,6 +31,7 @@ export default function TreeSidebar({
   const [filter, setFilter] = useState("");
   const [fontSize, setFontSize] = useState(13);
   const [expandLevel, setExpandLevel] = useState(2);
+  const treeAreaRef = useRef<HTMLDivElement>(null);
   const parsed = useMemo(() => validate(input), [input]);
 
   useEffect(() => {
@@ -38,10 +40,11 @@ export default function TreeSidebar({
     const lvl = Number(localStorage.getItem(LEVEL_KEY));
     if (lvl) setExpandLevel(lvl);
   }, []);
-  function changeZoom(n: number) {
+  const changeZoom = useCallback((n: number) => {
     setFontSize(n);
     localStorage.setItem(ZOOM_KEY, String(n));
-  }
+  }, []);
+  useCtrlWheelZoom(treeAreaRef, fontSize, changeZoom);
   function changeLevel(n: number) {
     setExpandLevel(n);
     localStorage.setItem(LEVEL_KEY, String(n));
@@ -137,7 +140,7 @@ export default function TreeSidebar({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1">
+      <div ref={treeAreaRef} className="min-h-0 flex-1">
         {input.trim() === "" ? (
           <p className="p-3 text-xs text-gray-600">Paste JSON to see its tree.</p>
         ) : !tree ? (

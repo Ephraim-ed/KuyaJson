@@ -35,20 +35,6 @@ npm install
 npm run dev      # http://localhost:3000
 ```
 
-## Build & deploy
-
-```bash
-npm run build
-npm start
-```
-
-### Deploy to Vercel
-
-1. Push this repo to GitHub.
-2. Import it at [vercel.com/new](https://vercel.com/new) — no settings to change.
-
-Or from the CLI:
-
 ```bash
 npm i -g vercel
 vercel
