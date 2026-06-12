@@ -46,11 +46,13 @@ export function fromXml(text: string): unknown {
   return xmlParser.parse(text);
 }
 
-export async function toCsv(value: unknown): Promise<string> {
+export async function toCsv(value: unknown, unwind = false): Promise<string> {
   const rows = Array.isArray(value) ? value : [value];
   return json2csv(rows as Record<string, unknown>[], {
     expandNestedObjects: true,
     expandArrayObjects: true,
+    // Unwind: emit a separate row for each element of an array field.
+    unwindArrays: unwind,
   });
 }
 

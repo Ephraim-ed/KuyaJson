@@ -2,10 +2,17 @@
 
 import { useTheme } from "./theme";
 
-/** "Kuya" — a friendly mascot wearing a salakot. Sleeps in dark mode. */
-export default function KuyaSprite({ size = 104 }: { size?: number }) {
+/** "Kuya" — a friendly mascot wearing a salakot. Sleeps in dark mode; can be sad. */
+export default function KuyaSprite({
+  size = 104,
+  mood = "default",
+}: {
+  size?: number;
+  mood?: "default" | "sad";
+}) {
   const { theme } = useTheme();
-  const sleeping = theme === "dark";
+  const sad = mood === "sad";
+  const sleeping = theme === "dark" && !sad;
   return (
     <svg
       width={size}
@@ -31,16 +38,26 @@ export default function KuyaSprite({ size = 104 }: { size?: number }) {
             <path d="M66 72 Q71 76 76 72" />
           </g>
         ) : (
-          <g className="kuya-eyes">
+          <g className={sad ? undefined : "kuya-eyes"}>
             <circle cx="49" cy="72" r="4.5" fill="#0b1220" />
             <circle cx="71" cy="72" r="4.5" fill="#0b1220" />
             <circle cx="50.6" cy="70.4" r="1.4" fill="#fff" />
             <circle cx="72.6" cy="70.4" r="1.4" fill="#fff" />
           </g>
         )}
-        {/* Smile + cheeks */}
+        {/* Sad eyebrows + tear */}
+        {sad && (
+          <g stroke="#0b1220" strokeWidth="2.4" strokeLinecap="round" fill="none">
+            <path d="M43 65 L53 68" />
+            <path d="M77 65 L67 68" />
+          </g>
+        )}
+        {sad && (
+          <path d="M49 78 Q46 84 49 87 Q52 84 49 78 Z" fill="#6fb7f7" />
+        )}
+        {/* Mouth: smile, or frown when sad */}
         <path
-          d="M51 83 Q60 91 69 83"
+          d={sad ? "M51 89 Q60 81 69 89" : "M51 83 Q60 91 69 83"}
           stroke="#0b1220"
           strokeWidth="3"
           strokeLinecap="round"

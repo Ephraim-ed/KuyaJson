@@ -6,7 +6,43 @@ import { Button, Select } from "../ui";
 import { DocumentActions } from "../DocumentActions";
 import { useConsole } from "../console";
 import { type ToolProps } from "./types";
-import { convert, type ConvertTarget } from "@/lib/json/convert";
+import { convert, toCsv, type ConvertTarget } from "@/lib/json/convert";
+
+/** Parse CSV text into rows of cells (handles quoted fields). */
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let row: string[] = [];
+  let field = "";
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else inQuotes = false;
+      } else field += c;
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      row.push(field);
+      field = "";
+    } else if (c === "\n") {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = "";
+    } else if (c !== "\r") {
+      field += c;
+    }
+  }
+  if (field !== "" || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
 
 const TARGETS: {
   value: ConvertTarget;
@@ -14,9 +50,9 @@ const TARGETS: {
   ext: string;
   mime: string;
 }[] = [
+  { value: "csv", label: "CSV", ext: "csv", mime: "text/csv" },
   { value: "yaml", label: "YAML", ext: "yaml", mime: "text/yaml" },
   { value: "xml", label: "XML", ext: "xml", mime: "application/xml" },
-  { value: "csv", label: "CSV", ext: "csv", mime: "text/csv" },
   { value: "typescript", label: "TypeScript types", ext: "ts", mime: "text/plain" },
   { value: "python", label: "Python (dataclass)", ext: "py", mime: "text/plain" },
   { value: "pydantic", label: "Python (Pydantic)", ext: "py", mime: "text/plain" },
@@ -25,27 +61,42 @@ const TARGETS: {
 ];
 
 export default function ConvertTool({ input, editor }: ToolProps) {
-  const [target, setTarget] = useState<ConvertTarget>("yaml");
-  const [error, setError] = useState<string | null>(null);
+  const [target, setTarget] = useState<ConvertTarget>("csv");
   const [busy, setBusy] = useState(false);
-  const { setOutput } = useConsole();
+  const [unwind, setUnwind] = useState(true);
+  const { setOutput, push, clearSource } = useConsole();
 
   const meta = TARGETS.find((t) => t.value === target)!;
 
   async function run() {
     setBusy(true);
-    setError(null);
+    clearSource("convert");
     try {
-      const text = await convert(input, target);
-      setOutput({
-        kind: "text",
-        title: `Converted to ${meta.label}`,
-        text,
-        filename: `output.${meta.ext}`,
-        mime: meta.mime,
-      });
+      if (target === "csv") {
+        const text = await toCsv(JSON.parse(input), unwind);
+        const all = parseCsv(text);
+        setOutput({
+          kind: "table",
+          title: "Converted to CSV",
+          headers: all[0] ?? [],
+          rows: all.slice(1),
+          text,
+          filename: `output.${meta.ext}`,
+          mime: meta.mime,
+        });
+      } else {
+        const text = await convert(input, target);
+        setOutput({
+          kind: "text",
+          title: `Converted to ${meta.label}`,
+          text,
+          filename: `output.${meta.ext}`,
+          mime: meta.mime,
+        });
+      }
+      push("ok", `Converted to ${meta.label}`, "convert");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Conversion failed.");
+      push("error", e instanceof Error ? e.message : "Conversion failed.", "convert");
     } finally {
       setBusy(false);
     }
@@ -62,10 +113,19 @@ export default function ConvertTool({ input, editor }: ToolProps) {
       <Button variant="primary" onClick={run} disabled={busy}>
         {busy ? "Converting…" : "Convert"}
       </Button>
-      <span className="text-xs text-gray-500">
-        Output appears in the Output panel below.
-      </span>
-      {error && <span className="text-xs text-red-400">{error}</span>}
+      {target === "csv" && (
+        <label
+          className="flex items-center gap-1.5 text-xs text-gray-400"
+          title="Emit a separate row for each element of an array field"
+        >
+          <input
+            type="checkbox"
+            checked={unwind}
+            onChange={(e) => setUnwind(e.target.checked)}
+          />
+          Split arrays into rows
+        </label>
+      )}
       <DocumentActions className="ml-auto" />
     </div>
   );

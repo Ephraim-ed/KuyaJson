@@ -4,6 +4,7 @@ import { useState } from "react";
 import ToolFrame from "./ToolFrame";
 import { Button, Select } from "../ui";
 import { DocumentActions } from "../DocumentActions";
+import { useConsole } from "../console";
 import { type ToolProps } from "./types";
 import { validate } from "@/lib/json/validate";
 import {
@@ -22,16 +23,16 @@ export default function TransformTool({ input, setInput, editor }: ToolProps) {
   const [order, setOrder] = useState<SortOrder>("asc");
   const [strategy, setStrategy] = useState<MergeStrategy>("deep");
   const [mergeSecond, setMergeSecond] = useState("");
-  const [error, setError] = useState<string | null>(null);
   const [showMerge, setShowMerge] = useState(false);
+  const { push, clearSource } = useConsole();
 
   function run() {
+    clearSource("transform");
     const v = validate(input);
     if (!v.ok) {
-      setError(v.error.message);
+      push("error", v.error.message, "transform");
       return;
     }
-    setError(null);
     try {
       let result: unknown;
       if (op === "sort") result = sortKeys(v.value, order);
@@ -40,14 +41,15 @@ export default function TransformTool({ input, setInput, editor }: ToolProps) {
       else {
         const second = validate(mergeSecond);
         if (!second.ok) {
-          setError(`Second document: ${second.error.message}`);
+          push("error", `Second document: ${second.error.message}`, "transform");
           return;
         }
         result = merge([v.value, second.value], strategy);
       }
       setInput(JSON.stringify(result, null, 2)); // apply in place
+      push("ok", `${op} applied`, "transform");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Transform failed.");
+      push("error", e instanceof Error ? e.message : "Transform failed.", "transform");
     }
   }
 
@@ -91,7 +93,6 @@ export default function TransformTool({ input, setInput, editor }: ToolProps) {
         <Button variant="primary" onClick={run}>
           Run
         </Button>
-        {error && <span className="text-xs text-red-400">{error}</span>}
         <DocumentActions className="ml-auto" />
       </div>
       {showMerge && (

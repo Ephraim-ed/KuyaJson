@@ -11,6 +11,7 @@ import {
 } from "react";
 import { copyText } from "@/lib/clipboard";
 import { downloadText } from "@/lib/download";
+import TableView from "./TableView";
 
 export type ConsoleLevel = "error" | "warn" | "ok" | "info";
 
@@ -35,6 +36,16 @@ export type DockOutput =
   | {
       kind: "text";
       title: string;
+      text: string;
+      filename?: string;
+      mime?: string;
+    }
+  | {
+      kind: "table";
+      title: string;
+      headers: string[];
+      rows: string[][];
+      /** Raw text for copy/download. */
       text: string;
       filename?: string;
       mime?: string;
@@ -286,13 +297,18 @@ export function DockPanel({
           "Output",
           output ? (
             <span className="text-[10px] text-gray-600">
-              {output.kind === "matches" ? output.items.length : ""}
+              {output.kind === "matches"
+                ? output.items.length
+                : output.kind === "table"
+                  ? output.rows.length
+                  : ""}
             </span>
           ) : undefined,
         )}
 
-        {/* Text-output copy/download */}
-        {activeTab === "output" && output?.kind === "text" && (
+        {/* Copy/download for text & table output */}
+        {activeTab === "output" &&
+          (output?.kind === "text" || output?.kind === "table") && (
           <div className="ml-auto flex items-center gap-1">
             <button
               onClick={() => copyText(output.text)}
@@ -318,7 +334,10 @@ export function DockPanel({
         <button
           onClick={() => (activeTab === "console" ? clear() : setOutput(null))}
           className={`${
-            activeTab === "output" && output?.kind === "text" ? "" : "ml-auto"
+            activeTab === "output" &&
+            (output?.kind === "text" || output?.kind === "table")
+              ? ""
+              : "ml-auto"
           } px-2 text-xs text-gray-500 hover:text-gray-200`}
           title={activeTab === "console" ? "Clear console" : "Clear output"}
         >
@@ -370,6 +389,11 @@ export function DockPanel({
             <p className="py-1 text-gray-600">
               Convert output and search results will appear here.
             </p>
+          ) : output.kind === "table" ? (
+            <>
+              <p className="py-1 text-gray-500">{output.title}</p>
+              <TableView headers={output.headers} rows={output.rows} />
+            </>
           ) : output.kind === "matches" ? (
             <>
               <p className="py-1 text-gray-500">{output.title}</p>

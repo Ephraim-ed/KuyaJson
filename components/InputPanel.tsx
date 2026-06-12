@@ -6,6 +6,7 @@ import WorkspaceTabs from "./WorkspaceTabs";
 import ZoomControls from "./ZoomControls";
 import Breadcrumbs from "./Breadcrumbs";
 import KuyaSprite from "./KuyaSprite";
+import Typewriter from "./Typewriter";
 import { DockPanel, useConsole } from "./console";
 import { validate } from "@/lib/json/validate";
 import type { Workspace } from "@/lib/persist";
@@ -130,7 +131,7 @@ export default function InputPanel({
           <div className="animate-kuya-fade pointer-events-none absolute inset-0 z-[5] flex flex-col items-center justify-center px-6 text-center">
             <KuyaSprite size={88} />
             <p className="mt-2 text-sm font-medium text-gray-300">
-              Start by adding some JSON
+              <Typewriter text="Start by adding some JSON" />
             </p>
             <p className="mt-1 text-xs text-gray-500">
               Type or paste here, drop a <span className="text-gray-400">.json</span> file,

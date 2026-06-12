@@ -6,6 +6,7 @@ import { VenetianMask, Info, ShieldCheck } from "lucide-react";
 import { Banner, Button, Select } from "../ui";
 import Tooltip from "../Tooltip";
 import { DocumentActions } from "../DocumentActions";
+import { useConsole } from "../console";
 import { type ToolProps } from "./types";
 import { runAnonymize } from "@/lib/workers/client";
 import { validate } from "@/lib/json/validate";
@@ -27,8 +28,8 @@ function newRule(): AnonRule {
 
 export default function AnonymizeTool({ input, setInput, editor }: ToolProps) {
   const [rules, setRules] = useState<AnonRule[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const [count, setCount] = useState<number | null>(null);
+  const { push, clearSource } = useConsole();
 
   const detected: DetectedPii[] = useMemo(() => {
     const v = validate(input);
@@ -36,15 +37,16 @@ export default function AnonymizeTool({ input, setInput, editor }: ToolProps) {
   }, [input]);
 
   async function run(activeRules: AnonRule[]) {
+    clearSource("anonymize");
     const v = validate(input);
     if (!v.ok) {
-      setError(v.error.message);
+      push("error", v.error.message, "anonymize");
       return;
     }
-    setError(null);
     const r = await runAnonymize(input, activeRules);
     setInput(r.text); // apply in place
     setCount(r.count);
+    push("ok", `Anonymized ${r.count} value${r.count === 1 ? "" : "s"}`, "anonymize");
   }
 
   function anonymizeAllPii() {
@@ -54,80 +56,66 @@ export default function AnonymizeTool({ input, setInput, editor }: ToolProps) {
   }
 
   function anonymizeEverything() {
+    clearSource("anonymize");
     const v = validate(input);
     if (!v.ok) {
-      setError(v.error.message);
+      push("error", v.error.message, "anonymize");
       return;
     }
-    setError(null);
     const r = anonymizeAllValues(v.value);
     setInput(JSON.stringify(r.value, null, 2));
     setCount(r.count);
+    push("ok", `Anonymized ${r.count} value${r.count === 1 ? "" : "s"}`, "anonymize");
   }
 
   const updateRule = (id: string, patch: Partial<AnonRule>) =>
     setRules((rs) => rs.map((r) => (r.id === id ? { ...r, ...patch } : r)));
   const removeRule = (id: string) => setRules((rs) => rs.filter((r) => r.id !== id));
 
-  const rulesPanel = (
-    <div className="flex h-full min-h-0 flex-col overflow-auto border-l border-border bg-bg-soft">
-      <div className="flex items-center gap-2 border-b border-border px-2 py-1.5">
-        <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
-          Rules
+  const detectedSection = (
+    <div className="flex h-full min-h-0 flex-col p-2">
+      <div className="mb-1 flex items-center justify-between">
+        <span className="flex items-center gap-1 text-xs font-medium text-gray-400">
+          Detected PII ({detected.length})
+          <Tooltip text="PII = Personally Identifiable Information — data that can identify someone (emails, phone numbers, SSNs, credit cards, IPs, names, addresses). Kuya auto-detects these so you can mask them.">
+            <Info size={12} className="cursor-help text-gray-500 hover:text-gray-300" />
+          </Tooltip>
         </span>
-        <Button
-          variant="primary"
-          className="ml-auto"
-          onClick={() => run(rules)}
-          disabled={rules.length === 0}
-          title="Apply the rules below to the document"
-        >
-          Anonymize
+        <Button disabled={detected.length === 0} onClick={anonymizeAllPii}>
+          <ShieldCheck size={15} />
+          Anonymize PII
         </Button>
-        <Button onClick={() => setRules((rs) => [...rs, newRule()])}>+ Rule</Button>
       </div>
-
-      <div className="border-b border-border p-2">
-        <div className="mb-1 flex items-center justify-between">
-          <span className="flex items-center gap-1 text-xs font-medium text-gray-400">
-            Detected PII ({detected.length})
-            <Tooltip text="PII = Personally Identifiable Information — data that can identify someone (emails, phone numbers, SSNs, credit cards, IPs, names, addresses). Kuya auto-detects these so you can mask them.">
-              <Info size={12} className="cursor-help text-gray-500 hover:text-gray-300" />
-            </Tooltip>
-          </span>
-          <Button variant="primary" disabled={detected.length === 0} onClick={anonymizeAllPii}>
-            <ShieldCheck size={15} />
-            Anonymize PII
-          </Button>
-        </div>
-        <div className="max-h-40 space-y-1 overflow-auto">
-          {detected.length === 0 ? (
-            <p className="text-xs text-gray-600">No PII detected.</p>
-          ) : (
-            detected.map((d, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-2 rounded bg-bg px-2 py-1 text-xs"
-              >
-                <span className="rounded bg-bg-softer px-1.5 py-0.5 text-[10px] uppercase text-accent">
-                  {PII_LABELS[d.kind]}
-                </span>
-                <span className="truncate text-gray-400" title={d.displayPath}>
-                  {d.displayPath}
-                </span>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
-
-      <div className="flex-1 space-y-2 p-2">
-        {rules.length === 0 && (
-          <p className="text-xs text-gray-600">
-            Add a rule, or use “Anonymize all” to mask detected PII.
-          </p>
+      <div className="min-h-0 flex-1 space-y-1 overflow-auto">
+        {detected.length === 0 ? (
+          <p className="text-xs text-gray-600">No PII detected.</p>
+        ) : (
+          detected.map((d, i) => (
+            <div
+              key={i}
+              className="flex items-center gap-2 rounded bg-bg px-2 py-1 text-xs"
+            >
+              <span className="rounded bg-bg-softer px-1.5 py-0.5 text-[10px] uppercase text-accent">
+                {PII_LABELS[d.kind]}
+              </span>
+              <span className="truncate text-gray-400" title={d.displayPath}>
+                {d.displayPath}
+              </span>
+            </div>
+          ))
         )}
-        {rules.map((r) => (
+      </div>
+    </div>
+  );
+
+  const rulesList = (
+    <div className="h-full space-y-2 overflow-auto p-2">
+      {rules.length === 0 && (
+        <p className="text-xs text-gray-600">
+          Add a rule, or use “Anonymize PII” to mask detected PII.
+        </p>
+      )}
+      {rules.map((r) => (
           <div key={r.id} className="space-y-1.5 rounded border border-border p-2">
             <div className="flex items-center gap-1.5">
               <input
@@ -173,6 +161,34 @@ export default function AnonymizeTool({ input, setInput, editor }: ToolProps) {
             />
           </div>
         ))}
+    </div>
+  );
+
+  const rulesPanel = (
+    <div className="flex h-full min-h-0 flex-col border-l border-border bg-bg-soft">
+      <div className="flex items-center gap-2 border-b border-border px-2 py-1.5">
+        <span className="text-xs font-medium uppercase tracking-wide text-gray-500">
+          Rules
+        </span>
+        <Button
+          variant="primary"
+          className="ml-auto"
+          onClick={() => run(rules)}
+          disabled={rules.length === 0}
+          title="Apply the rules below to the document"
+        >
+          Anonymize
+        </Button>
+        <Button onClick={() => setRules((rs) => [...rs, newRule()])}>+ Rule</Button>
+      </div>
+      <div className="min-h-0 flex-1">
+        <Split
+          direction="vertical"
+          initial={0.4}
+          storageKey="anon-detected"
+          first={detectedSection}
+          second={rulesList}
+        />
       </div>
     </div>
   );
@@ -191,7 +207,6 @@ export default function AnonymizeTool({ input, setInput, editor }: ToolProps) {
         {count != null && (
           <span className="text-xs text-gray-500">{count} values replaced (applied to document)</span>
         )}
-        {error && <span className="text-xs text-red-400">{error}</span>}
         <DocumentActions className="ml-auto" />
       </div>
       <div className="min-h-0 flex-1">

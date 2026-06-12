@@ -1,5 +1,7 @@
 "use client";
 
+import { ZoomIn, ZoomOut } from "lucide-react";
+
 interface Props {
   size: number;
   setSize: (n: number) => void;
@@ -19,26 +21,25 @@ export default function ZoomControls({
   className = "",
 }: Props) {
   const btn =
-    "flex h-5 w-5 items-center justify-center rounded text-gray-400 hover:bg-bg-softer hover:text-gray-200 disabled:opacity-40";
+    "flex h-6 w-6 items-center justify-center text-gray-400 transition-colors hover:bg-bg-softer hover:text-gray-200 disabled:pointer-events-none disabled:opacity-40";
   return (
-    <div className={`flex items-center gap-0.5 ${className}`}>
-      <span className="mr-1 text-[9px] font-normal uppercase tracking-wide text-gray-600">
-        Zoom
-      </span>
+    <div
+      className={`inline-flex items-center overflow-hidden rounded-md border border-border bg-bg ${className}`}
+    >
       <button
         className={btn}
         onClick={() => setSize(Math.max(min, size - 1))}
         disabled={size <= min}
         title="Zoom out"
       >
-        −
+        <ZoomOut size={13} />
       </button>
       <button
         onClick={() => setSize(base)}
         title="Reset zoom"
-        className="min-w-[34px] rounded px-1 text-center text-[11px] tabular-nums text-gray-400 hover:bg-bg-softer hover:text-gray-200"
+        className="min-w-[30px] border-x border-border px-1 py-0.5 text-center text-[11px] tabular-nums text-gray-400 transition-colors hover:bg-bg-softer hover:text-gray-200"
       >
-        {size}px
+        {size}
       </button>
       <button
         className={btn}
@@ -46,7 +47,7 @@ export default function ZoomControls({
         disabled={size >= max}
         title="Zoom in"
       >
-        +
+        <ZoomIn size={13} />
       </button>
     </div>
   );

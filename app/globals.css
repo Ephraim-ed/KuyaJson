@@ -66,8 +66,34 @@ body {
 }
 
 body {
-  @apply bg-bg text-gray-200 antialiased;
+  @apply bg-bg font-sans text-gray-200 antialiased;
   overscroll-behavior: none;
+  letter-spacing: -0.006em;
+  /* Inter: tabular figures, single-story a/g, nicer punctuation */
+  font-feature-settings: "cv05", "cv11", "ss01", "tnum";
+  text-rendering: optimizeLegibility;
+}
+
+/* Typographic hierarchy */
+h1,
+h2,
+h3,
+h4 {
+  letter-spacing: -0.018em;
+  text-wrap: balance;
+}
+h1 {
+  @apply text-xl font-semibold text-gray-100;
+}
+h2 {
+  @apply text-lg font-semibold text-gray-100;
+}
+h3 {
+  @apply text-sm font-semibold text-gray-200;
+}
+/* Small all-caps section labels */
+.label-eyebrow {
+  @apply text-[11px] font-medium uppercase tracking-wide text-gray-500;
 }
 
 /* CodeMirror sizing: let the editor flex to fill its container */
@@ -278,6 +304,20 @@ body {
   animation: kuya-zfloat 2.4s ease-in-out infinite;
   transform-box: fill-box;
   transform-origin: center;
+}
+
+@keyframes caret-blink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.animate-caret {
+  animation: caret-blink 1s steps(1) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

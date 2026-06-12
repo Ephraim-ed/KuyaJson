@@ -374,11 +374,13 @@ function Header({
             ☰
           </button>
         )}
-        <span className="flex h-6 items-center justify-center rounded-md bg-accent px-1.5 font-mono text-sm font-bold text-white">
+        <span className="flex h-6 items-center justify-center rounded-md bg-accent px-1.5 font-mono text-sm font-bold tracking-tight text-white">
           {"{J}"}
         </span>
-        <span className="text-base font-semibold text-gray-100">Kuya Json</span>
-        <span className="hidden text-xs text-gray-500 lg:inline">
+        <span className="text-[15px] font-semibold tracking-tightish text-gray-100">
+          Kuya Json
+        </span>
+        <span className="hidden text-xs font-normal text-gray-500 lg:inline">
           · built by ep
         </span>
       </div>
